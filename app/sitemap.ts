@@ -1,0 +1,11 @@
+import type { MetadataRoute } from 'next';
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  const base = 'https://hirepage.vercel.app';
+  const now = new Date();
+  return [
+    { url: `${base}/`, lastModified: now, priority: 1 },
+    { url: `${base}/privacy`, lastModified: now, priority: 0.3 },
+    { url: `${base}/terms`, lastModified: now, priority: 0.3 },
+  ];
+}
