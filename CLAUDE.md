@@ -2,23 +2,51 @@
 
 ## What this is
 
-HirePage is a real business selling **done-for-you personal websites** to students, graduates, and job seekers. A customer submits a Tally form with their resume; we design and ship them a custom single-page site within a few days.
+HirePage is a real business selling **done-for-you personal websites** to students, graduates, and job seekers. A customer submits a Fillout intake form with their resume; at the end of the form they're redirected to a Stripe-hosted checkout (Payment Link) for the plan they selected. We then design and ship their custom single-page site within a few days.
 
 This repo is the **marketing landing page** that converts visitors into form submissions.
 
 ## Core conversion path
 
 - **Primary CTA text (everywhere):** `Create My HirePage`
-- **CTA target:** `https://tally.so/r/b54vZg` (Tally form — do NOT change)
-- Every CTA on the site uses `components/CTAButton.tsx`, which defaults to that URL.
+- **CTA target:** `https://forms.fillout.com/t/39KHbwLLRHus` (Fillout intake form)
+- Every CTA on the site uses `components/CTAButton.tsx`, which exports the `FORM_URL` constant and defaults to that URL. Do not hardcode the form URL anywhere else.
+- Fillout form ends on a per-plan thank-you page whose "Proceed to Payment" button redirects to one of three live Stripe Payment Links (CAD, `client_reference_id` set to the submitter's email so payments can be matched back to submissions).
 
 ## Pricing (displayed on page, matches real offer)
+
+All prices are **CAD** (target market is Canadian students — the `$` on the site is CAD, not USD).
 
 | Plan | Price | What |
 |------|-------|------|
 | Basic | $50 one-time | Custom website built from resume |
 | Monthly Edits | $50 + $5/mo | Website + monthly edits |
 | Unlimited Edits | $50 + $10/mo | Priority + unlimited updates |
+
+At Stripe checkout every plan shows **$50 charged today** — the subscription plans have a 30-day free trial on the recurring portion, so the first month of edits is free and $5/$10/mo starts on day 31. This keeps the perceived price anchored to $50 and matches the "first month free" framing customers see at checkout.
+
+## Payments (live, CAD)
+
+Customers reach checkout via three live Stripe Payment Links. Each per-plan Fillout thank-you page's "Proceed to Payment" button routes to the matching link:
+
+| Plan | Payment Link |
+|------|------|
+| Basic | https://buy.stripe.com/9B6aEQeuvg6Wbj82jobjW00 |
+| Monthly Edits | https://buy.stripe.com/bJefZa5XZ3kacnc0bgbjW01 |
+| Unlimited Edits | https://buy.stripe.com/28E3codqrdYO0Eu5vAbjW02 |
+
+- **Stripe account:** `acct_1TOTfW54qLQ2cDt8` (HirePage)
+- Subscription plans use `subscription_data[trial_period_days]=30` on the Payment Link (not on the prices themselves), so the same $5/mo and $10/mo prices are reused cleanly.
+- **Matching payments to submissions:** `client_reference_id` on every Payment Link is set to the submitter's **Email** — Fillout's free tier doesn't expose Submission ID to URL-button variables. `client_reference_id` is invisible/immutable to the customer at checkout, so email changes on the Stripe page don't break the match. Cross-reference in the Stripe dashboard → Payments → `client_reference_id` column.
+- **Stripe CLI** was paired with a restricted key (expires every 90 days — re-run `stripe login`). Scopes required if the key is rotated: Products, Prices, Payment Links (all Write).
+
+Product / price IDs (for dashboard lookups or API work — **do not recreate**):
+
+| Product | Product ID | Prices |
+|---|---|---|
+| HirePage Basic | `prod_UNEoeTmx46xkd4` | `price_1TOUM854qLQ2cDt8OOM8tcYT` ($50 one-time) |
+| HirePage Monthly Edits | `prod_UNEo4r37LQ3UhT` | `price_1TOUM854qLQ2cDt8AIybljft` ($50 setup) · `price_1TOUM954qLQ2cDt8SJkBDhgo` ($5/mo) |
+| HirePage Unlimited Edits | `prod_UNEo2FoYmGz0Fw` | `price_1TOUMA54qLQ2cDt8QtchVYLS` ($50 setup) · `price_1TOUMA54qLQ2cDt8cGuBRdk0` ($10/mo) |
 
 ## Tech stack
 
@@ -52,7 +80,7 @@ components/
   FinalCTA.tsx      Dark gradient card with final conversion push
   Footer.tsx        Logo + links + legal
   Logo.tsx          Inline SVG: gradient rounded tile + HP + green status dot
-  CTAButton.tsx     Exports `TALLY_URL` constant; primary + secondary variants
+  CTAButton.tsx     Exports `FORM_URL` constant; primary + secondary variants
 public/
   logo.png          512px — used in metadata
   logo@1024.png     High-res backup
@@ -80,7 +108,7 @@ scripts/
 - **Hero headline:** "Stand Out. Get Noticed. Get Hired."
 - **Hero subhead:** "We turn your resume into a professional personal website that helps recruiters instantly understand your value."
 - **Tone:** confident, modern, trustworthy, ambitious, clean. **Avoid hype language.**
-- Never change the Tally URL or the CTA button text.
+- Never change the CTA button text. Form URL can change — edit `FORM_URL` in `components/CTAButton.tsx`.
 
 ## Deployment
 
@@ -100,7 +128,7 @@ npx next build     # production build check
 
 ## Conventions / guardrails
 
-- Every CTA must use `<CTAButton />` so the Tally URL is never hardcoded wrong in multiple places.
+- Every CTA must use `<CTAButton />` (or import `FORM_URL` from `CTAButton`) so the form URL is never hardcoded wrong in multiple places.
 - Keep all sections using `.container-pro` for width and `.section` for padding.
 - Static-only. Do not introduce a backend, database, or auth unless explicitly requested.
 - The `Logo` component is inline SVG — edit it there for visual changes, don't swap to `<img>`.

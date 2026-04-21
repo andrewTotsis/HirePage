@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export const TALLY_URL = 'https://tally.so/r/b54vZg';
+export const FORM_URL = 'https://forms.fillout.com/t/39KHbwLLRHus';
 
 type Props = {
   children?: React.ReactNode;
@@ -14,7 +14,7 @@ export default function CTAButton({
   children = 'Create My HirePage',
   variant = 'primary',
   className = '',
-  href = TALLY_URL,
+  href = FORM_URL,
   ariaLabel,
 }: Props) {
   const cls = variant === 'primary' ? 'btn-primary' : 'btn-secondary';

@@ -38,3 +38,6 @@ next-env.d.ts
 /logo-options/
 /scripts/generate_logo_options.py
 /hirepage.bundle
+
+# claude code local settings
+/.claude/
