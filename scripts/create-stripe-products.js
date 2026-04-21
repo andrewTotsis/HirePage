@@ -49,8 +49,9 @@ const tiers = [
 ];
 
 async function findOrCreateProduct(name, description) {
-  const existing = await stripe.products.search({ query: `name:'${name}'`, limit: 1 });
-  if (existing.data.length > 0) return existing.data[0];
+  for await (const product of stripe.products.list({ limit: 100, active: true })) {
+    if (product.name === name) return product;
+  }
   return stripe.products.create({ name, description });
 }
 
