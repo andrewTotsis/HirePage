@@ -1,4 +1,4 @@
-import CTAButton from './CTAButton';
+import { FORM_URL } from './CTAButton';
 
 export default function FinalCTA() {
   return (
@@ -36,7 +36,7 @@ export default function FinalCTA() {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
-                href="https://tally.so/r/b54vZg"
+                href={FORM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-white text-ink px-5 py-3 rounded-xl font-semibold transition-transform hover:-translate-y-0.5 shadow-soft"
