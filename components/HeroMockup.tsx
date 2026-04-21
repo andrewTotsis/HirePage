@@ -1,3 +1,38 @@
+function AbstractAvatar() {
+  return (
+    <div className="relative">
+      <div
+        aria-hidden
+        className="absolute -inset-3 rounded-full bg-gradient-to-br from-sky-200/70 via-sky-100/40 to-transparent blur-2xl"
+      />
+      <div className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-white ring-4 ring-white md:h-44 md:w-44">
+        <svg viewBox="0 0 100 100" className="h-full w-full" aria-hidden>
+          <defs>
+            <radialGradient id="heroMockupBg" cx="50%" cy="40%" r="70%">
+              <stop offset="0%" stopColor="#bfdbfe" />
+              <stop offset="60%" stopColor="#e0f2fe" />
+              <stop offset="100%" stopColor="#ffffff" />
+            </radialGradient>
+            <linearGradient id="heroMockupFig" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#1e3a8a" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.55" />
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" fill="url(#heroMockupBg)" />
+          <g fill="url(#heroMockupFig)">
+            <circle cx="50" cy="40" r="15" />
+            <path d="M20 95 C20 70, 35 60, 50 60 C65 60, 80 70, 80 95 Z" />
+          </g>
+        </svg>
+      </div>
+      <span className="absolute bottom-1 right-1 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-medium text-slate-700 shadow-sm md:bottom-2 md:right-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        Open to BDR roles
+      </span>
+    </div>
+  );
+}
+
 export default function HeroMockup() {
   return (
     <div className="mx-auto max-w-5xl">
@@ -8,95 +43,97 @@ export default function HeroMockup() {
           <span className="dot" />
           <div className="ml-3 flex-1">
             <div className="mx-auto max-w-md text-center text-[11px] text-white/50 bg-white/5 rounded-md py-1 px-3 border border-white/5">
-              hirepage.com/jordan-smith
+              hirepage.com/alex-parker
             </div>
           </div>
         </div>
 
         <div className="bg-white">
-          <div className="grid md:grid-cols-[260px_1fr]">
-            {/* Left rail */}
-            <aside className="hidden md:block bg-[#fafafa] border-r border-black/5 p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-500" />
-                <div>
-                  <div className="text-sm font-semibold tracking-tight">Jordan Smith</div>
-                  <div className="text-xs text-ink/55">Marketing Graduate</div>
-                </div>
-              </div>
-              <div className="mt-6 space-y-2 text-xs text-ink/65">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Open to opportunities
-                </div>
-                <div>NYU · Class of 2025</div>
-                <div>New York, NY</div>
-              </div>
-              <div className="mt-6 flex flex-wrap gap-1.5">
-                {['SEO', 'Branding', 'Analytics', 'Content', 'Notion'].map((t) => (
-                  <span
-                    key={t}
-                    className="text-[10px] px-2 py-1 rounded-md bg-white border border-black/10 text-ink/70"
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </aside>
+          {/* Hero */}
+          <div
+            className="relative px-7 pt-8 pb-7 md:px-10 md:pt-12 md:pb-10"
+            style={{
+              backgroundImage:
+                'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(59,130,246,0.12), transparent 70%)',
+            }}
+          >
+            <div className="grid items-center gap-6 md:grid-cols-[1.2fr_auto] md:gap-10">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-[#dbeafe] bg-[#eff6ff] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[#1d4ed8]">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#3b82f6]" />
+                  Available for BDR / SDR roles · Toronto
+                </span>
 
-            {/* Main */}
-            <div className="p-6 md:p-10">
-              <div className="space-y-1">
-                <div className="text-xs uppercase tracking-widest text-ink/45">Personal Site</div>
-                <h3 className="text-2xl md:text-3xl font-semibold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-                  Helping brands grow with clear, data-driven marketing.
+                <h3
+                  className="mt-4 text-3xl md:text-5xl font-semibold tracking-tight text-[#0f172a]"
+                  style={{ letterSpacing: '-0.03em' }}
+                >
+                  Alex Parker
                 </h3>
-                <p className="text-sm md:text-base text-ink/60 max-w-2xl">
-                  Marketing graduate with 2+ years of internship experience across SaaS and consumer
-                  brands. Currently exploring growth marketing roles in NYC.
+
+                <p className="mt-2 text-sm md:text-base font-medium text-[#1d4ed8]">
+                  Business Development Representative
                 </p>
+
+                <p className="mt-3 max-w-lg text-sm md:text-[15px] text-[#64748b] leading-relaxed">
+                  Sales professional with{' '}
+                  <span className="font-semibold text-[#0f172a]">3+ years</span>{' '}
+                  driving outbound pipeline, closing deals, and generating
+                  revenue across insurance, recruiting, and e-commerce — most
+                  recently influencing{' '}
+                  <span className="font-semibold text-[#0f172a]">
+                    $1.1M+ in insurance premiums
+                  </span>
+                  .
+                </p>
+
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0f172a] px-3 py-1.5 text-[11px] font-semibold text-white">
+                    Get in touch →
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-[#0f172a]">
+                    LinkedIn
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-[#0f172a]">
+                    View experience
+                  </span>
+                </div>
+
+                <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#64748b]">
+                  <span>alex.parker@email.com</span>
+                  <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:inline-block" />
+                  <span>(647) 555-0199</span>
+                  <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:inline-block" />
+                  <span>Toronto, ON</span>
+                </div>
               </div>
 
-              <div className="mt-6 grid sm:grid-cols-3 gap-3">
-                {[
-                  { k: 'Internships', v: '4' },
-                  { k: 'Avg ROAS lift', v: '+38%' },
-                  { k: 'Projects shipped', v: '12' },
-                ].map((s) => (
-                  <div
-                    key={s.k}
-                    className="rounded-xl border border-black/8 bg-white p-4"
-                  >
-                    <div className="text-xl font-semibold tracking-tight">{s.v}</div>
-                    <div className="text-xs text-ink/55">{s.k}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 grid md:grid-cols-2 gap-3">
-                {[
-                  { t: 'Growth Internship · Acme SaaS', d: 'Drove 28% MQL growth via SEO & lifecycle' },
-                  { t: 'Brand Project · Local Coffee', d: 'New identity + landing page that lifted CTR 41%' },
-                ].map((p) => (
-                  <div key={p.t} className="rounded-xl border border-black/8 p-4">
-                    <div className="text-sm font-semibold tracking-tight">{p.t}</div>
-                    <div className="text-xs text-ink/55 mt-1">{p.d}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 flex items-center gap-2">
-                <span className="inline-flex items-center gap-2 text-xs text-ink/60 px-3 py-1.5 rounded-md bg-[#fafafa] border border-black/8">
-                  Resume
-                </span>
-                <span className="inline-flex items-center gap-2 text-xs text-ink/60 px-3 py-1.5 rounded-md bg-[#fafafa] border border-black/8">
-                  LinkedIn
-                </span>
-                <span className="inline-flex items-center gap-2 text-xs text-white px-3 py-1.5 rounded-md bg-ink">
-                  Contact
-                </span>
+              <div className="flex justify-center md:justify-end">
+                <AbstractAvatar />
               </div>
             </div>
+          </div>
+
+          {/* Metrics bar */}
+          <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/70 px-7 py-5 md:grid-cols-4 md:gap-6 md:px-10 md:py-6">
+            {[
+              { v: '$1.1M+', k: 'Insurance premiums influenced' },
+              { v: '1,500+', k: 'Client territory managed' },
+              { v: '15+', k: 'Daily outbound calls' },
+              { v: '3+ yrs', k: 'Across BDR & inside sales' },
+            ].map((s) => (
+              <div key={s.k}>
+                <div
+                  className="text-xl md:text-2xl font-semibold tracking-tight text-[#0f172a]"
+                  style={{ letterSpacing: '-0.03em' }}
+                >
+                  {s.v}
+                </div>
+                <div className="mt-0.5 text-[10px] md:text-[11px] text-[#64748b] leading-tight">
+                  {s.k}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
