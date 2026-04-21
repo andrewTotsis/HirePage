@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Logo from './Logo';
+import { FORM_URL } from './CTAButton';
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -43,7 +44,7 @@ export default function Footer() {
             <ul className="mt-3 space-y-2 text-sm">
               <li>
                 <a
-                  href="https://tally.so/r/b54vZg"
+                  href={FORM_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-ink/75 hover:text-ink"
