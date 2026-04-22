@@ -1,6 +1,6 @@
 const stats = [
   {
-    value: '5–10%',
+    value: '7%',
     label: 'of candidates have a personal career website',
     sub: 'A clear way to differentiate from the resume pile.',
   },

@@ -5,7 +5,7 @@ const faqs = [
   },
   {
     q: 'How fast is delivery?',
-    a: 'Most HirePages are designed and delivered within a few business days of receiving your form submission.',
+    a: 'Most HirePages are designed and delivered within 24 hours of receiving your form submission.',
   },
   {
     q: 'Do I need design skills?',
