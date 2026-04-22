@@ -14,7 +14,7 @@ const steps = [
   {
     n: '03',
     title: 'Receive your HirePage and start sharing',
-    desc: 'Get your link in days. Add it to LinkedIn, email, and applications.',
+    desc: 'Get your link within 24 hours. Add it to LinkedIn, email, and applications.',
   },
 ];
 
