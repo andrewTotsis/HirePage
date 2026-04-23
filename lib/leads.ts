@@ -153,3 +153,7 @@ export async function listLeads(): Promise<Lead[]> {
   const all = await storage.listLeads();
   return (all as unknown as Lead[]).sort((a, b) => b.updated_at - a.updated_at);
 }
+
+export async function deleteLead(id: string): Promise<boolean> {
+  return storage.deleteLead(id);
+}

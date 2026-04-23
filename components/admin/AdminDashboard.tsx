@@ -1,6 +1,5 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { AdminLead, Segment, SortBy, statusOf } from './types';
 import TopBar from './TopBar';
@@ -8,7 +7,6 @@ import AnalyticsHeader from './AnalyticsHeader';
 import SegmentTabs from './SegmentTabs';
 import FiltersBar from './FiltersBar';
 import LeadTable from './LeadTable';
-import LeadDetailPanel from './LeadDetailPanel';
 
 type Props = { hasBackend: boolean };
 
@@ -22,7 +20,6 @@ export default function AdminDashboard({ hasBackend }: Props) {
   const [segment, setSegment] = useState<Segment>('all');
   const [packageFilter, setPackageFilter] = useState<'all' | 'basic' | 'monthly' | 'unlimited'>('all');
   const [sortBy, setSortBy] = useState<SortBy>('recent');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [lastSeen, setLastSeen] = useState<number>(Date.now());
 
   const fetchLeads = async (silent = false) => {
@@ -78,12 +75,6 @@ export default function AdminDashboard({ hasBackend }: Props) {
     return list;
   }, [leads, query, packageFilter, segment, sortBy]);
 
-  const selected = useMemo(() => leads.find((l) => l.id === selectedId) ?? null, [leads, selectedId]);
-
-  const onPatched = (updated: AdminLead) => {
-    setLeads((cur) => cur.map((l) => (l.id === updated.id ? updated : l)));
-  };
-
   return (
     <div className="min-h-screen">
       <TopBar query={query} onQuery={setQuery} />
@@ -127,26 +118,10 @@ export default function AdminDashboard({ hasBackend }: Props) {
           ) : filtered.length === 0 ? (
             <EmptyState segment={segment} />
           ) : (
-            <LeadTable
-              leads={filtered}
-              newIds={newLeadIds}
-              onSelect={setSelectedId}
-              selectedId={selectedId}
-            />
+            <LeadTable leads={filtered} newIds={newLeadIds} />
           )}
         </div>
       </main>
-
-      <AnimatePresence>
-        {selected && (
-          <LeadDetailPanel
-            key={selected.id}
-            lead={selected}
-            onClose={() => setSelectedId(null)}
-            onPatched={onPatched}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

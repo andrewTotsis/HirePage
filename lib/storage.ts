@@ -146,6 +146,13 @@ export const storage = {
     await this.putLead(merged);
     return merged;
   },
+  async deleteLead(id: string): Promise<boolean> {
+    const sql = getSql();
+    if (!sql) return mem.delete(id);
+    await ensureSchema(sql);
+    const rows = (await sql`DELETE FROM leads WHERE id = ${id} RETURNING id`) as Record<string, unknown>[];
+    return rows.length > 0;
+  },
 };
 
 export type { LeadRecord };

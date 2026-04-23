@@ -1,13 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { AdminLead, packageLabel, relativeTime, statusOf } from './types';
 
 type Props = {
   leads: AdminLead[];
   newIds: Set<string>;
-  onSelect: (id: string) => void;
-  selectedId: string | null;
 };
 
 function StatusBadge({ status }: { status: 'complete' | 'in_progress' | 'abandoned' }) {
@@ -66,7 +65,7 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-export default function LeadTable({ leads, newIds, onSelect, selectedId }: Props) {
+export default function LeadTable({ leads, newIds }: Props) {
   return (
     <div className="divide-y divide-white/5">
       <div className="hidden grid-cols-[minmax(260px,1.6fr)_140px_1fr_180px_150px_120px] items-center gap-4 px-5 py-3 text-[11px] font-medium uppercase tracking-[0.14em] text-white/40 lg:grid">
@@ -80,19 +79,18 @@ export default function LeadTable({ leads, newIds, onSelect, selectedId }: Props
 
       {leads.map((l, i) => {
         const status = statusOf(l);
-        const active = selectedId === l.id;
         const isNew = newIds.has(l.id);
         return (
-          <motion.button
+          <motion.div
             key={l.id}
             layout
             initial={isNew ? { opacity: 0, y: -6, backgroundColor: 'rgba(99,102,241,0.12)' } : false}
             animate={{ opacity: 1, y: 0, backgroundColor: 'rgba(255,255,255,0)' }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: isNew ? 0 : Math.min(i * 0.01, 0.15) }}
-            onClick={() => onSelect(l.id)}
-            className={`group grid w-full grid-cols-[1fr_auto] items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.03] lg:grid-cols-[minmax(260px,1.6fr)_140px_1fr_180px_150px_120px] ${
-              active ? 'bg-white/[0.04]' : ''
-            }`}
+          >
+          <Link
+            href={`/admin/leads/${l.id}`}
+            className="group grid w-full grid-cols-[1fr_auto] items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.03] lg:grid-cols-[minmax(260px,1.6fr)_140px_1fr_180px_150px_120px]"
           >
             <div className="flex min-w-0 items-center gap-3">
               <Avatar name={l.name || l.email || 'Anonymous'} />
@@ -124,7 +122,8 @@ export default function LeadTable({ leads, newIds, onSelect, selectedId }: Props
               <div className="text-[11px] text-white/45">{l.progress}%</div>
               <div className="text-[11px] text-white/40">{relativeTime(l.updated_at)}</div>
             </div>
-          </motion.button>
+          </Link>
+          </motion.div>
         );
       })}
     </div>
