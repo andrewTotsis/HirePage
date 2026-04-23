@@ -40,8 +40,8 @@ export default function Hero() {
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 reveal reveal-delay-3">
             <CTAButton />
-            <CTAButton href="#examples" variant="secondary">
-              See Examples
+            <CTAButton href="/onboarding" variant="secondary">
+              Create My HirePage (Guided)
             </CTAButton>
           </div>
 
