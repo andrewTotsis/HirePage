@@ -92,9 +92,9 @@ export default function AdminDashboard({ hasBackend }: Props) {
           <div className="mb-6 rounded-xl border border-[#f59e0b]/25 bg-[#f59e0b]/[0.08] px-4 py-3 text-sm text-[#fbbf24]">
             <span className="font-medium">Demo mode.</span>{' '}
             <span className="text-[#fbbf24]/80">
-              Upstash Redis isn&rsquo;t configured — data resets between requests. Set{' '}
-              <code className="font-mono text-xs">KV_REST_API_URL</code> +{' '}
-              <code className="font-mono text-xs">KV_REST_API_TOKEN</code> in Vercel to persist.
+              Database isn&rsquo;t configured — data resets between requests. Add the{' '}
+              <strong>Neon</strong> integration in Vercel (provisions{' '}
+              <code className="font-mono text-xs">DATABASE_URL</code>) to persist.
             </span>
           </div>
         )}

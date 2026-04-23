@@ -1,20 +1,72 @@
-import { Redis } from '@upstash/redis';
+import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 
 /**
- * Storage abstraction: Upstash Redis (via REST) in prod, in-memory Map for dev.
- * Persists leads keyed by id with a sorted-by-updated_at secondary index.
+ * Storage abstraction: Neon Postgres in prod, in-memory Map for dev.
+ * The table is created on first use so there's no separate migration step.
  */
-
-const LEADS_KEY = 'hirepage:leads';
-const LEADS_INDEX_KEY = 'hirepage:leads:index';
 
 type LeadRecord = Record<string, unknown> & { id: string; updated_at: number };
 
-function getRedis(): Redis | null {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  return new Redis({ url, token });
+let cached: NeonQueryFunction<false, false> | null = null;
+let bootstrapped = false;
+let bootstrapping: Promise<void> | null = null;
+
+function getSql(): NeonQueryFunction<false, false> | null {
+  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!url) return null;
+  if (!cached) cached = neon(url);
+  return cached;
+}
+
+async function ensureSchema(sql: NeonQueryFunction<false, false>): Promise<void> {
+  if (bootstrapped) return;
+  if (!bootstrapping) {
+    bootstrapping = (async () => {
+      await sql`
+        CREATE TABLE IF NOT EXISTS leads (
+          id              text PRIMARY KEY,
+          name            text NOT NULL DEFAULT '',
+          email           text NOT NULL DEFAULT '',
+          phone           text NOT NULL DEFAULT '',
+          phone_country   text,
+          role            jsonb NOT NULL DEFAULT '[]'::jsonb,
+          linkedin        text NOT NULL DEFAULT '',
+          github          text NOT NULL DEFAULT '',
+          resume_name     text,
+          resume_size     integer,
+          resume_url      text,
+          headshot_name   text,
+          headshot_url    text,
+          style           text,
+          colors          jsonb NOT NULL DEFAULT '[]'::jsonb,
+          custom_requests text,
+          package         text,
+          progress        integer NOT NULL DEFAULT 0,
+          last_step       text NOT NULL DEFAULT 'welcome',
+          notes           text NOT NULL DEFAULT '',
+          contacted       boolean NOT NULL DEFAULT false,
+          created_at      bigint NOT NULL,
+          updated_at      bigint NOT NULL
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS leads_updated_at_idx ON leads (updated_at DESC)`;
+      bootstrapped = true;
+    })();
+  }
+  await bootstrapping;
+}
+
+function rowToRecord(r: Record<string, unknown>): LeadRecord {
+  const parsed = {
+    ...r,
+    role: Array.isArray(r.role) ? r.role : (r.role ? JSON.parse(String(r.role)) : []),
+    colors: Array.isArray(r.colors) ? r.colors : (r.colors ? JSON.parse(String(r.colors)) : []),
+    created_at: Number(r.created_at),
+    updated_at: Number(r.updated_at),
+    progress: Number(r.progress ?? 0),
+    contacted: Boolean(r.contacted),
+  };
+  return parsed as unknown as LeadRecord;
 }
 
 const mem: Map<string, LeadRecord> = (globalThis as any).__hp_mem_leads ?? new Map();
@@ -22,35 +74,70 @@ const mem: Map<string, LeadRecord> = (globalThis as any).__hp_mem_leads ?? new M
 
 export const storage = {
   hasBackend(): boolean {
-    return getRedis() !== null;
+    return !!(process.env.DATABASE_URL || process.env.POSTGRES_URL);
   },
   async putLead(lead: LeadRecord): Promise<void> {
-    const redis = getRedis();
-    if (redis) {
-      await redis.hset(LEADS_KEY, { [lead.id]: JSON.stringify(lead) });
-      await redis.zadd(LEADS_INDEX_KEY, { score: lead.updated_at, member: lead.id });
+    const sql = getSql();
+    if (!sql) {
+      mem.set(lead.id, lead);
       return;
     }
-    mem.set(lead.id, lead);
+    await ensureSchema(sql);
+    const l = lead as Record<string, unknown>;
+    await sql`
+      INSERT INTO leads (
+        id, name, email, phone, phone_country, role, linkedin, github,
+        resume_name, resume_size, resume_url, headshot_name, headshot_url,
+        style, colors, custom_requests, package, progress, last_step,
+        notes, contacted, created_at, updated_at
+      ) VALUES (
+        ${l.id}, ${l.name ?? ''}, ${l.email ?? ''}, ${l.phone ?? ''}, ${l.phone_country ?? null},
+        ${JSON.stringify(l.role ?? [])}::jsonb, ${l.linkedin ?? ''}, ${l.github ?? ''},
+        ${l.resume_name ?? null}, ${l.resume_size ?? null}, ${l.resume_url ?? null},
+        ${l.headshot_name ?? null}, ${l.headshot_url ?? null},
+        ${l.style ?? null}, ${JSON.stringify(l.colors ?? [])}::jsonb,
+        ${l.custom_requests ?? null}, ${l.package ?? null},
+        ${l.progress ?? 0}, ${l.last_step ?? 'welcome'},
+        ${l.notes ?? ''}, ${l.contacted ?? false},
+        ${l.created_at ?? Date.now()}, ${l.updated_at ?? Date.now()}
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        email = EXCLUDED.email,
+        phone = EXCLUDED.phone,
+        phone_country = EXCLUDED.phone_country,
+        role = EXCLUDED.role,
+        linkedin = EXCLUDED.linkedin,
+        github = EXCLUDED.github,
+        resume_name = EXCLUDED.resume_name,
+        resume_size = EXCLUDED.resume_size,
+        resume_url = EXCLUDED.resume_url,
+        headshot_name = EXCLUDED.headshot_name,
+        headshot_url = EXCLUDED.headshot_url,
+        style = EXCLUDED.style,
+        colors = EXCLUDED.colors,
+        custom_requests = EXCLUDED.custom_requests,
+        package = EXCLUDED.package,
+        progress = EXCLUDED.progress,
+        last_step = EXCLUDED.last_step,
+        notes = EXCLUDED.notes,
+        contacted = EXCLUDED.contacted,
+        updated_at = EXCLUDED.updated_at
+    `;
   },
   async getLead(id: string): Promise<LeadRecord | null> {
-    const redis = getRedis();
-    if (redis) {
-      const v = await redis.hget<string>(LEADS_KEY, id);
-      if (!v) return null;
-      return typeof v === 'string' ? (JSON.parse(v) as LeadRecord) : (v as LeadRecord);
-    }
-    return mem.get(id) ?? null;
+    const sql = getSql();
+    if (!sql) return mem.get(id) ?? null;
+    await ensureSchema(sql);
+    const rows = (await sql`SELECT * FROM leads WHERE id = ${id} LIMIT 1`) as Record<string, unknown>[];
+    return rows[0] ? rowToRecord(rows[0]) : null;
   },
   async listLeads(): Promise<LeadRecord[]> {
-    const redis = getRedis();
-    if (redis) {
-      const map = (await redis.hgetall<Record<string, string | LeadRecord>>(LEADS_KEY)) ?? {};
-      return Object.values(map).map((v) =>
-        typeof v === 'string' ? (JSON.parse(v) as LeadRecord) : (v as LeadRecord),
-      );
-    }
-    return Array.from(mem.values());
+    const sql = getSql();
+    if (!sql) return Array.from(mem.values());
+    await ensureSchema(sql);
+    const rows = (await sql`SELECT * FROM leads ORDER BY updated_at DESC LIMIT 1000`) as Record<string, unknown>[];
+    return rows.map(rowToRecord);
   },
   async patchLead(id: string, patch: Partial<LeadRecord>): Promise<LeadRecord | null> {
     const existing = await this.getLead(id);
