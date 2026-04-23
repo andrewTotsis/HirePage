@@ -1,0 +1,169 @@
+'use client';
+
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
+import { AdminLead, Segment, SortBy, statusOf } from './types';
+import TopBar from './TopBar';
+import AnalyticsHeader from './AnalyticsHeader';
+import SegmentTabs from './SegmentTabs';
+import FiltersBar from './FiltersBar';
+import LeadTable from './LeadTable';
+import LeadDetailPanel from './LeadDetailPanel';
+
+type Props = { hasBackend: boolean };
+
+const REFRESH_MS = 10_000;
+
+export default function AdminDashboard({ hasBackend }: Props) {
+  const [leads, setLeads] = useState<AdminLead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [segment, setSegment] = useState<Segment>('all');
+  const [packageFilter, setPackageFilter] = useState<'all' | 'basic' | 'monthly' | 'unlimited'>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('recent');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [lastSeen, setLastSeen] = useState<number>(Date.now());
+
+  const fetchLeads = async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const r = await fetch('/api/admin/leads', { cache: 'no-store' });
+      if (!r.ok) throw new Error('fetch failed');
+      const j = (await r.json()) as { leads: AdminLead[] };
+      setLeads(j.leads ?? []);
+      setErr(null);
+    } catch (e) {
+      setErr('Could not load leads');
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeads();
+    const t = setInterval(() => fetchLeads(true), REFRESH_MS);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLastSeen(Date.now()), 1500);
+    return () => clearTimeout(t);
+  }, [leads.length]);
+
+  const newLeadIds = useMemo(() => {
+    return new Set(leads.filter((l) => l.created_at > lastSeen - 30_000).map((l) => l.id));
+  }, [leads, lastSeen]);
+
+  const filtered = useMemo(() => {
+    let list = [...leads];
+    const q = query.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (l) =>
+          l.name.toLowerCase().includes(q) ||
+          l.email.toLowerCase().includes(q) ||
+          l.role.some((r) => r.toLowerCase().includes(q)),
+      );
+    }
+    if (packageFilter !== 'all') list = list.filter((l) => l.package === packageFilter);
+    const now = Date.now();
+    if (segment === 'hot') list = list.filter((l) => l.progress >= 60 && statusOf(l, now) !== 'complete');
+    if (segment === 'dropoff') list = list.filter((l) => statusOf(l, now) === 'abandoned');
+    if (segment === 'complete') list = list.filter((l) => statusOf(l, now) === 'complete');
+    if (segment === 'contacted') list = list.filter((l) => l.contacted);
+    if (sortBy === 'recent') list.sort((a, b) => b.updated_at - a.updated_at);
+    if (sortBy === 'created') list.sort((a, b) => b.created_at - a.created_at);
+    if (sortBy === 'intent') list.sort((a, b) => b.progress - a.progress || b.updated_at - a.updated_at);
+    return list;
+  }, [leads, query, packageFilter, segment, sortBy]);
+
+  const selected = useMemo(() => leads.find((l) => l.id === selectedId) ?? null, [leads, selectedId]);
+
+  const onPatched = (updated: AdminLead) => {
+    setLeads((cur) => cur.map((l) => (l.id === updated.id ? updated : l)));
+  };
+
+  return (
+    <div className="min-h-screen">
+      <TopBar query={query} onQuery={setQuery} />
+      <main className="mx-auto max-w-[1500px] px-6 pb-24 pt-6">
+        {!hasBackend && (
+          <div className="mb-6 rounded-xl border border-[#f59e0b]/25 bg-[#f59e0b]/[0.08] px-4 py-3 text-sm text-[#fbbf24]">
+            <span className="font-medium">Demo mode.</span>{' '}
+            <span className="text-[#fbbf24]/80">
+              Upstash Redis isn&rsquo;t configured — data resets between requests. Set{' '}
+              <code className="font-mono text-xs">KV_REST_API_URL</code> +{' '}
+              <code className="font-mono text-xs">KV_REST_API_TOKEN</code> in Vercel to persist.
+            </span>
+          </div>
+        )}
+
+        <AnalyticsHeader leads={leads} />
+
+        <div className="mt-8">
+          <SegmentTabs
+            leads={leads}
+            value={segment}
+            onChange={setSegment}
+          />
+        </div>
+
+        <div className="mt-4">
+          <FiltersBar
+            packageFilter={packageFilter}
+            onPackageFilter={setPackageFilter}
+            sortBy={sortBy}
+            onSort={setSortBy}
+            count={filtered.length}
+          />
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02]">
+          {loading ? (
+            <div className="flex h-64 items-center justify-center text-white/50">Loading…</div>
+          ) : err ? (
+            <div className="flex h-64 items-center justify-center text-[#f87171]">{err}</div>
+          ) : filtered.length === 0 ? (
+            <EmptyState segment={segment} />
+          ) : (
+            <LeadTable
+              leads={filtered}
+              newIds={newLeadIds}
+              onSelect={setSelectedId}
+              selectedId={selectedId}
+            />
+          )}
+        </div>
+      </main>
+
+      <AnimatePresence>
+        {selected && (
+          <LeadDetailPanel
+            key={selected.id}
+            lead={selected}
+            onClose={() => setSelectedId(null)}
+            onPatched={onPatched}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function EmptyState({ segment }: { segment: Segment }) {
+  const copy: Record<Segment, { title: string; subtitle: string }> = {
+    all: { title: 'No leads yet', subtitle: 'New onboarding submissions will appear here in real time.' },
+    hot: { title: 'No hot leads', subtitle: 'Hot leads reached 60%+ but didn\u2019t finish. Check back soon.' },
+    dropoff: { title: 'No drop-offs', subtitle: 'Nobody has gone quiet for more than 24 hours. Nice.' },
+    complete: { title: 'No completions yet', subtitle: 'Completed onboarding flows will surface here.' },
+    contacted: { title: 'No contacted leads', subtitle: 'Mark leads as contacted from the detail panel.' },
+  };
+  const c = copy[segment];
+  return (
+    <div className="flex h-80 flex-col items-center justify-center gap-2 text-center">
+      <div className="text-lg font-semibold text-white/90">{c.title}</div>
+      <div className="max-w-sm text-sm text-white/50">{c.subtitle}</div>
+    </div>
+  );
+}

@@ -4,19 +4,31 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { initialData, OnboardingData } from './types';
 
 const STORAGE_KEY = 'hirepage-onboarding-v1';
+const ID_KEY = 'hirepage-onboarding-id';
+
+function makeId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  } catch {}
+  return 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
 
 export function useOnboardingState() {
   const [data, setData] = useState<OnboardingData>(initialData);
   const [hydrated, setHydrated] = useState(false);
+  const [leadId, setLeadId] = useState<string>('');
   const initial = useRef(true);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setData((d) => ({ ...d, ...parsed }));
+      if (raw) setData((d) => ({ ...d, ...JSON.parse(raw) }));
+      let id = localStorage.getItem(ID_KEY);
+      if (!id) {
+        id = makeId();
+        localStorage.setItem(ID_KEY, id);
       }
+      setLeadId(id);
     } catch {}
     setHydrated(true);
   }, []);
@@ -52,9 +64,50 @@ export function useOnboardingState() {
   const reset = useCallback(() => {
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(ID_KEY);
     } catch {}
     setData(initialData);
   }, []);
 
-  return { data, update, reset, hydrated };
+  return { data, update, reset, hydrated, leadId };
+}
+
+/** Fire-and-forget POST to persist partial/complete progress to the admin CRM. */
+export function reportProgress(
+  leadId: string,
+  lastStep: string,
+  data: OnboardingData,
+): void {
+  if (!leadId) return;
+  const payload = {
+    id: leadId,
+    last_step: lastStep,
+    name: data.fullName,
+    email: data.email,
+    phone: data.phoneNumber,
+    phone_country: data.phoneCountry,
+    role: data.roles,
+    linkedin: data.linkedin,
+    github: data.github,
+    resume_name: data.resume?.name,
+    resume_size: data.resume?.size,
+    headshot_name: data.headshot?.name,
+    style: data.style,
+    colors: data.colors,
+    custom_requests: data.customRequests,
+    package: data.plan,
+  };
+  try {
+    const body = JSON.stringify(payload);
+    if ('sendBeacon' in navigator) {
+      navigator.sendBeacon('/api/leads/upsert', new Blob([body], { type: 'application/json' }));
+    } else {
+      fetch('/api/leads/upsert', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch {}
 }

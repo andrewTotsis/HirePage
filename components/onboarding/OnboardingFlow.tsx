@@ -24,7 +24,7 @@ import {
   WelcomeStep,
 } from './steps';
 import { OnboardingData } from './types';
-import { useOnboardingState } from './useOnboardingState';
+import { reportProgress, useOnboardingState } from './useOnboardingState';
 
 type StepId =
   | 'welcome'
@@ -83,7 +83,7 @@ function canAdvanceFrom(step: StepId, data: OnboardingData): boolean {
 }
 
 export default function OnboardingFlow() {
-  const { data, update, reset, hydrated } = useOnboardingState();
+  const { data, update, reset, hydrated, leadId } = useOnboardingState();
   const [stepIdx, setStepIdx] = useState(0);
   const [direction, setDirection] = useState<1 | -1>(1);
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success'>('idle');
@@ -92,16 +92,23 @@ export default function OnboardingFlow() {
   const isLast = stepIdx === STEPS.length - 1;
   const canAdvance = canAdvanceFrom(stepId, data);
 
+  useEffect(() => {
+    if (!hydrated || !leadId) return;
+    const t = setTimeout(() => reportProgress(leadId, stepId, data), 700);
+    return () => clearTimeout(t);
+  }, [hydrated, leadId, stepId, data]);
+
   const goNext = useCallback(() => {
     if (!canAdvance) return;
     if (isLast) {
+      if (leadId) reportProgress(leadId, 'submitted', data);
       setSubmitState('loading');
       setTimeout(() => setSubmitState('success'), 3200);
       return;
     }
     setDirection(1);
     setStepIdx((i) => Math.min(i + 1, STEPS.length - 1));
-  }, [canAdvance, isLast]);
+  }, [canAdvance, isLast, leadId, data]);
 
   const goBack = useCallback(() => {
     setDirection(-1);
