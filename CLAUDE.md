@@ -143,6 +143,37 @@ The same rule applies when the user has just asked for a code change and follows
 - **Default branch on GitHub** is `claude/build-hirepage-landing-Gojrk` (**not `main`** — `main` does not exist on origin). Target PRs against it.
 - **Production URLs:** `https://hirepage.app` (primary), `https://hirepage.vercel.app` (alias).
 
+## Admin CRM (`/admin`)
+
+Internal-only dashboard at `/admin` for tracking all onboarding submissions — complete AND partial. The onboarding flow POSTs progress to `/api/leads/upsert` (sendBeacon, debounced) keyed by a browser-generated UUID in localStorage, so every step of the funnel is captured as a lead record.
+
+**Auth:** password-gated via signed httpOnly cookie. Set in Vercel:
+
+| Env var | What | Required |
+|---|---|---|
+| `ADMIN_PASSWORD` | Admin login password (dev default: `hirepage-admin` — change for prod) | yes |
+| `ADMIN_COOKIE_SECRET` | HMAC secret for the admin session cookie | yes (prod) |
+
+**Storage:** Upstash Redis via REST, keyed by lead id. Use the Upstash or Vercel KV marketplace integration — it auto-provisions both env vars:
+
+| Env var | What |
+|---|---|
+| `KV_REST_API_URL` or `UPSTASH_REDIS_REST_URL` | Upstash REST URL |
+| `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_TOKEN` | Upstash REST token |
+
+If Upstash vars are missing, the admin boots in **demo mode** — in-memory fallback, data resets between serverless invocations, and a warning banner is shown in the dashboard.
+
+**Files of interest:**
+- `app/admin/` — login + dashboard pages
+- `app/api/admin/` — auth + leads list/detail/patch
+- `app/api/leads/upsert/route.ts` — public write endpoint called from onboarding
+- `components/admin/` — UI (`AdminDashboard`, `TopBar`, `AnalyticsHeader`, `SegmentTabs`, `FiltersBar`, `LeadTable`, `LeadDetailPanel`)
+- `lib/leads.ts` — domain (upsert, progress calc, status classification)
+- `lib/storage.ts` — Upstash Redis client + memory fallback
+- `lib/admin-auth.ts` — password check + HMAC cookie
+
+Dashboard polls `/api/admin/leads` every 10s for near-real-time updates; newly-arrived leads get a subtle highlight animation.
+
 ## Per-client sites (`clients/`)
 
 Each paying HirePage customer gets a **standalone** Next.js project under `clients/<slug>/`, deployed to its own Vercel project.
