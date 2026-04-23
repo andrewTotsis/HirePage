@@ -154,14 +154,13 @@ Internal-only dashboard at `/admin` for tracking all onboarding submissions — 
 | `ADMIN_PASSWORD` | Admin login password (dev default: `hirepage-admin` — change for prod) | yes |
 | `ADMIN_COOKIE_SECRET` | HMAC secret for the admin session cookie | yes (prod) |
 
-**Storage:** Upstash Redis via REST, keyed by lead id. Use the Upstash or Vercel KV marketplace integration — it auto-provisions both env vars:
+**Storage:** Neon Postgres via the HTTP driver (`@neondatabase/serverless`). The `leads` table is self-bootstrapping — first query runs `CREATE TABLE IF NOT EXISTS` so there's no separate migration step. Set in Vercel (or use the **Neon** marketplace integration which auto-provisions it):
 
 | Env var | What |
 |---|---|
-| `KV_REST_API_URL` or `UPSTASH_REDIS_REST_URL` | Upstash REST URL |
-| `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_TOKEN` | Upstash REST token |
+| `DATABASE_URL` (or `POSTGRES_URL`) | Neon pooled connection string (e.g. `postgres://…@…-pooler.neon.tech/neondb?sslmode=require`) |
 
-If Upstash vars are missing, the admin boots in **demo mode** — in-memory fallback, data resets between serverless invocations, and a warning banner is shown in the dashboard.
+If `DATABASE_URL` is missing, the admin boots in **demo mode** — in-memory fallback, data resets between serverless invocations, and a warning banner is shown in the dashboard.
 
 **Files of interest:**
 - `app/admin/` — login + dashboard pages
@@ -169,7 +168,7 @@ If Upstash vars are missing, the admin boots in **demo mode** — in-memory fall
 - `app/api/leads/upsert/route.ts` — public write endpoint called from onboarding
 - `components/admin/` — UI (`AdminDashboard`, `TopBar`, `AnalyticsHeader`, `SegmentTabs`, `FiltersBar`, `LeadTable`, `LeadDetailPanel`)
 - `lib/leads.ts` — domain (upsert, progress calc, status classification)
-- `lib/storage.ts` — Upstash Redis client + memory fallback
+- `lib/storage.ts` — Neon SQL client + memory fallback (self-bootstrapping schema)
 - `lib/admin-auth.ts` — password check + HMAC cookie
 
 Dashboard polls `/api/admin/leads` every 10s for near-real-time updates; newly-arrived leads get a subtle highlight animation.
