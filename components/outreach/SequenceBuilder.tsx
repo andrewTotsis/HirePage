@@ -227,7 +227,7 @@ export default function SequenceBuilder({ id }: { id: string }) {
                     className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-[ui-monospace,SFMono-Regular,Menlo,monospace] leading-relaxed outline-none focus:border-white/25"
                   />
                   <div className="text-xs text-white/40">
-                    Tokens: <code>{`{{first_name}}`}</code> <code>{`{{last_name}}`}</code> <code>{`{{full_name}}`}</code> <code>{`{{company}}`}</code> <code>{`{{title}}`}</code> <code>{`{{linkedin}}`}</code>
+                    Tokens: <code>{`{{first_name}}`}</code> <code>{`{{last_name}}`}</code> <code>{`{{full_name}}`}</code> <code>{`{{company}}`}</code> <code>{`{{title}}`}</code> <code>{`{{linkedin}}`}</code> <code className="text-[#d8b4fe]">{`{{ai_intro}}`}</code>
                   </div>
                 </div>
               </div>

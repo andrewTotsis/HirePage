@@ -394,6 +394,7 @@ function aggregateStats(events: ActivityEvent[]): SequenceStats {
 /* ---------------- Send tick (cron-driven) ---------------- */
 
 import { sendOutreachEmail } from './email';
+import { warmupStatus } from './warmup';
 
 export type ProcessResult = {
   processed: number;
@@ -401,14 +402,27 @@ export type ProcessResult = {
   completed: number;
   errors: number;
   draft: number; // when no Resend API key — pretended as sent for tracking
+  warmup_capped: boolean;
+  warmup_remaining_today: number | null;
   details: Array<{ enrollment_id: string; result: string }>;
 };
 
 const MAX_PER_TICK = 25;
 
 export async function processDueEnrollments(now: number = Date.now(), baseUrl?: string): Promise<ProcessResult> {
-  const due = await outreachStorage.listDueEnrollments(now, MAX_PER_TICK);
-  const out: ProcessResult = { processed: 0, sent: 0, completed: 0, errors: 0, draft: 0, details: [] };
+  const wu = await warmupStatus(now);
+  const cap = Math.min(MAX_PER_TICK, Number.isFinite(wu.remaining_today) ? wu.remaining_today : MAX_PER_TICK);
+  const due = cap > 0 ? await outreachStorage.listDueEnrollments(now, cap) : [];
+  const out: ProcessResult = {
+    processed: 0,
+    sent: 0,
+    completed: 0,
+    errors: 0,
+    draft: 0,
+    warmup_capped: wu.enabled && wu.remaining_today === 0,
+    warmup_remaining_today: Number.isFinite(wu.remaining_today) ? wu.remaining_today : null,
+    details: [],
+  };
   for (const en of due) {
     out.processed++;
     try {

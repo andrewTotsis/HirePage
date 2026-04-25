@@ -18,6 +18,11 @@ export default function ContactDetailView({ id }: { id: string }) {
   const [seqId, setSeqId] = useState<string>('');
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiContext, setAiContext] = useState('');
+  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const load = async () => {
     try {
@@ -80,6 +85,25 @@ export default function ContactDetailView({ id }: { id: string }) {
     if (!confirm('Delete this contact and all enrollments?')) return;
     await fetch(`/api/admin/outreach/contacts/${contact.id}`, { method: 'DELETE' });
     window.location.href = '/admin/outreach/contacts';
+  };
+
+  const generateIntro = async () => {
+    setAiBusy(true); setAiError(null);
+    try {
+      const r = await fetch('/api/admin/outreach/ai/intro', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ contact_id: contact.id, extra_context: aiContext, persist: true }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setAiError(j.error || 'failed'); return; }
+      setAiResult(j.intro);
+      await load();
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'failed');
+    } finally {
+      setAiBusy(false);
+    }
   };
 
   return (
@@ -165,6 +189,48 @@ export default function ContactDetailView({ id }: { id: string }) {
                 );
               })}
             </div>
+          </section>
+
+          <section className="rounded-2xl border border-white/5 bg-white/[0.02] p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">AI personalized intro</div>
+                <p className="mt-0.5 text-xs text-white/55">
+                  Saved as <code className="text-white/75">{`{{ai_intro}}`}</code> on this contact. Reference it in any sequence step body.
+                </p>
+              </div>
+              <button onClick={() => setAiOpen((v) => !v)} className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs hover:bg-white/10">
+                {aiOpen ? 'Hide' : 'Open'}
+              </button>
+            </div>
+            {aiOpen && (
+              <div className="mt-3 space-y-3">
+                {contact.custom?.ai_intro && (
+                  <div className="rounded-xl border border-[#22c55e]/20 bg-[#22c55e]/[0.05] p-3 text-sm">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-[#86efac]">Current intro</div>
+                    <div className="mt-1 text-white/90 whitespace-pre-wrap">{contact.custom.ai_intro}</div>
+                  </div>
+                )}
+                <textarea
+                  value={aiContext}
+                  onChange={(e) => setAiContext(e.target.value)}
+                  rows={4}
+                  placeholder="(optional) Paste their LinkedIn About / headline / a recent post for sharper personalization."
+                  className="w-full rounded-lg border border-white/10 bg-white/[0.04] p-2 text-sm outline-none focus:border-white/25"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={generateIntro}
+                    disabled={aiBusy}
+                    className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-white/90 disabled:opacity-50"
+                  >
+                    {aiBusy ? 'Generating…' : contact.custom?.ai_intro ? 'Regenerate' : 'Generate intro'}
+                  </button>
+                  {aiResult && <span className="text-xs text-[#86efac]">Saved</span>}
+                  {aiError && <span className="text-xs text-[#fca5a5]">{aiError}</span>}
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border border-white/5 bg-white/[0.02] p-5">

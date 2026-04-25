@@ -100,6 +100,13 @@ async function ensureSchema(sql: NeonQueryFunction<false, false>): Promise<void>
           updated_at  bigint NOT NULL
         )
       `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS outreach_settings (
+          key         text PRIMARY KEY,
+          value       jsonb NOT NULL DEFAULT '{}'::jsonb,
+          updated_at  bigint NOT NULL
+        )
+      `;
       bootstrapped = true;
     })();
   }
@@ -597,5 +604,56 @@ export const outreachStorage = {
     await ensureSchema(sql);
     const rows = (await sql`DELETE FROM outreach_templates WHERE id = ${id} RETURNING id`) as Record<string, unknown>[];
     return rows.length > 0;
+  },
+
+  /* settings */
+  async getSetting<T = Record<string, unknown>>(key: string): Promise<T | null> {
+    const sql = getSql();
+    if (!sql) {
+      const v = (g.__hp_mem_settings as Map<string, unknown>)?.get(key);
+      return (v as T) ?? null;
+    }
+    await ensureSchema(sql);
+    const rows = (await sql`SELECT value FROM outreach_settings WHERE key = ${key} LIMIT 1`) as Record<string, unknown>[];
+    if (!rows[0]) return null;
+    const raw = rows[0].value;
+    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as T;
+  },
+  async putSetting(key: string, value: Record<string, unknown>): Promise<void> {
+    const sql = getSql();
+    if (!sql) {
+      const m = ((g.__hp_mem_settings as Map<string, unknown>) ?? new Map());
+      m.set(key, value);
+      g.__hp_mem_settings = m;
+      return;
+    }
+    await ensureSchema(sql);
+    await sql`
+      INSERT INTO outreach_settings (key, value, updated_at)
+      VALUES (${key}, ${JSON.stringify(value)}::jsonb, ${Date.now()})
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+    `;
+  },
+  async deleteSetting(key: string): Promise<void> {
+    const sql = getSql();
+    if (!sql) {
+      ((g.__hp_mem_settings as Map<string, unknown>) ?? new Map()).delete(key);
+      return;
+    }
+    await ensureSchema(sql);
+    await sql`DELETE FROM outreach_settings WHERE key = ${key}`;
+  },
+
+  /* aggregate helpers */
+  async countSentSince(sinceMs: number): Promise<number> {
+    const sql = getSql();
+    if (!sql) {
+      let n = 0;
+      for (const e of memEvents.values()) if (e.type === 'sent' && e.ts >= sinceMs) n++;
+      return n;
+    }
+    await ensureSchema(sql);
+    const rows = (await sql`SELECT COUNT(*)::int AS n FROM outreach_events WHERE type = 'sent' AND ts >= ${sinceMs}`) as Record<string, unknown>[];
+    return Number(rows[0]?.n ?? 0);
   },
 };

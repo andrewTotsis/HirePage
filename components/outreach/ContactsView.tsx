@@ -72,6 +72,29 @@ export default function ContactsView() {
     reload();
   };
 
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const bulkAI = async (overwrite: boolean) => {
+    setAiBusy(true);
+    setAiSummary(null);
+    try {
+      const r = await fetch('/api/admin/outreach/ai/intro/bulk', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ contact_ids: Array.from(selected), overwrite }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        setAiSummary(j.error || 'Failed');
+      } else {
+        setAiSummary(`Generated ${j.generated} · skipped ${j.skipped} · errors ${j.errors}`);
+      }
+      await reload();
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-[1500px] px-6 pb-24 pt-6">
       <div className="mb-6 flex items-end justify-between gap-4">
@@ -136,13 +159,21 @@ export default function ContactsView() {
         </div>
 
         {selected.size > 0 && (
-          <div className="flex items-center gap-2 border-b border-white/5 bg-white/[0.03] px-4 py-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 border-b border-white/5 bg-white/[0.03] px-4 py-2 text-sm">
             <span className="text-white/65">{selected.size} selected</span>
             <button
               onClick={() => setShowEnroll(true)}
               className="ml-2 rounded-lg bg-white px-3 py-1 text-xs font-medium text-black hover:bg-white/90"
             >
               Enroll in sequence
+            </button>
+            <button
+              onClick={() => bulkAI(false)}
+              disabled={aiBusy}
+              className="rounded-lg border border-[#a855f7]/40 bg-[#a855f7]/10 px-3 py-1 text-xs text-[#d8b4fe] hover:bg-[#a855f7]/20 disabled:opacity-50"
+              title="Generate AI personalized intros for selected contacts"
+            >
+              {aiBusy ? 'Generating…' : '✨ AI intros'}
             </button>
             <button
               onClick={bulkDelete}
@@ -156,6 +187,7 @@ export default function ContactsView() {
             >
               Clear
             </button>
+            {aiSummary && <span className="ml-2 text-xs text-white/65">{aiSummary}</span>}
           </div>
         )}
 
