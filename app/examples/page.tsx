@@ -167,24 +167,20 @@ function ExampleRow({ profile, index }: { profile: Profile; index: number }) {
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-4">
-            <a
+            <Link
               href={FORM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
               style={{ backgroundColor: profile.site.accent.base }}
               aria-label={`Build a HirePage like ${profile.name}'s`}
             >
               Build yours <span aria-hidden="true">→</span>
-            </a>
-            <a
+            </Link>
+            <Link
               href={FORM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
               className="text-sm font-semibold text-ink/70 hover:text-ink"
             >
               Get a website like this →
-            </a>
+            </Link>
           </div>
         </div>
 

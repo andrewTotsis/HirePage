@@ -43,14 +43,12 @@ export default function Footer() {
             <div className="text-xs uppercase tracking-widest text-ink/45">Get started</div>
             <ul className="mt-3 space-y-2 text-sm">
               <li>
-                <a
+                <Link
                   href={FORM_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="text-ink/75 hover:text-ink"
                 >
                   Create My HirePage
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

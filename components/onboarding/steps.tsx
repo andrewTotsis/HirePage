@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ChangeEvent, DragEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, DragEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import StepShell from './StepShell';
 import { OnboardingData, PackageId, StylePref, UploadedFile } from './types';
 
@@ -493,6 +493,279 @@ export function ReviewStep({
         ))}
       </div>
     </StepShell>
+  );
+}
+
+/* ---------- Grouped step: Basics (name + email + phone) ---------- */
+
+export function BasicsStep({ data, update }: StepProps) {
+  const countries = ['+1', '+44', '+61', '+91', '+33', '+49', '+81', '+86'];
+  return (
+    <StepShell
+      eyebrow="Step 1 of 3 · About you"
+      title="Tell us who you are"
+      subtitle="The basics. We'll use these to set up your HirePage."
+    >
+      <div className="space-y-5">
+        <Field label="Full name">
+          <input
+            value={data.fullName}
+            onChange={(e) => update('fullName', e.target.value)}
+            placeholder="Alex Parker"
+            autoComplete="name"
+            autoFocus
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Email">
+          <input
+            type="email"
+            value={data.email}
+            onChange={(e) => update('email', e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Phone" hint="Optional — we'll text you if we need something">
+          <div className="flex gap-2">
+            <select
+              value={data.phoneCountry}
+              onChange={(e) => update('phoneCountry', e.target.value)}
+              className="rounded-2xl border border-black/10 bg-white px-4 py-4 text-lg text-ink outline-none transition-all focus:border-black/30 focus:ring-4 focus:ring-black/5"
+              aria-label="Country code"
+            >
+              {countries.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <input
+              type="tel"
+              value={data.phoneNumber}
+              onChange={(e) => update('phoneNumber', e.target.value.replace(/[^0-9 ()\-]/g, ''))}
+              placeholder="(555) 123-4567"
+              autoComplete="tel"
+              className={inputCls}
+            />
+          </div>
+        </Field>
+      </div>
+    </StepShell>
+  );
+}
+
+/* ---------- Grouped step: Profile (roles + linkedin + github + resume + headshot) ---------- */
+
+export function ProfileStep({ data, update }: StepProps) {
+  const [draft, setDraft] = useState('');
+  const suggestions = ['Software Engineer', 'Finance Intern', 'Product Manager', 'Marketing Analyst', 'Data Scientist'];
+
+  const commit = (raw: string) => {
+    const v = raw.trim();
+    if (!v || data.roles.includes(v)) return;
+    update('roles', [...data.roles, v]);
+    setDraft('');
+  };
+  const remove = (v: string) => update('roles', data.roles.filter((r) => r !== v));
+
+  return (
+    <StepShell
+      eyebrow="Step 2 of 3 · Your profile"
+      title="What's your story?"
+      subtitle="Roles you're targeting, links to your work, and your resume."
+    >
+      <div className="space-y-5">
+        <Field label="Roles you're applying for" hint="Press Enter after each one">
+          <div className="rounded-2xl border border-black/10 bg-white p-3 transition-all focus-within:border-black/30 focus-within:ring-4 focus-within:ring-black/5">
+            <div className="flex flex-wrap gap-2">
+              {data.roles.map((r) => (
+                <motion.span
+                  key={r}
+                  layout
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-ink text-white px-3 py-1.5 text-sm"
+                >
+                  {r}
+                  <button onClick={() => remove(r)} className="opacity-70 hover:opacity-100" aria-label={`Remove ${r}`}>×</button>
+                </motion.span>
+              ))}
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (draft.trim()) commit(draft);
+                  } else if (e.key === 'Backspace' && !draft && data.roles.length) {
+                    update('roles', data.roles.slice(0, -1));
+                  }
+                }}
+                placeholder={data.roles.length ? 'Add another...' : 'e.g. Software Engineer'}
+                className="flex-1 min-w-[140px] bg-transparent px-2 py-1.5 text-base outline-none"
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {suggestions
+              .filter((s) => !data.roles.includes(s))
+              .map((s) => (
+                <button
+                  key={s}
+                  onClick={() => commit(s)}
+                  className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm text-ink/70 transition-all hover:border-black/30 hover:text-ink"
+                >
+                  + {s}
+                </button>
+              ))}
+          </div>
+        </Field>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <Field label="LinkedIn" hint="Optional">
+            <input
+              type="url"
+              value={data.linkedin}
+              onChange={(e) => update('linkedin', e.target.value)}
+              placeholder="linkedin.com/in/yourname"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="GitHub / portfolio" hint="Optional">
+            <input
+              type="url"
+              value={data.github}
+              onChange={(e) => update('github', e.target.value)}
+              placeholder="github.com/yourname"
+              className={inputCls}
+            />
+          </Field>
+        </div>
+
+        <Field label="Resume" hint="PDF, DOC, or DOCX">
+          <FileDrop
+            accept=".pdf,.doc,.docx"
+            value={data.resume}
+            onChange={(f) => update('resume', f)}
+            hint="Drop your resume — we'll pull the content from here"
+          />
+        </Field>
+
+        <Field label="Headshot" hint="Optional — JPG or PNG, square works best">
+          <FileDrop
+            accept="image/*"
+            preview
+            value={data.headshot}
+            onChange={(f) => update('headshot', f)}
+            hint="A friendly photo helps recruiters connect"
+          />
+        </Field>
+      </div>
+    </StepShell>
+  );
+}
+
+/* ---------- Grouped step: Design + Plan (colors + custom requests + package) ---------- */
+
+export function DesignStep({ data, update }: StepProps) {
+  const toggleColor = (c: string) => {
+    const has = data.colors.includes(c);
+    update('colors', has ? data.colors.filter((x) => x !== c) : [...data.colors, c]);
+  };
+  return (
+    <StepShell
+      eyebrow="Step 3 of 3 · Design & plan"
+      title="Make it yours, then pick a plan"
+      subtitle="Color preferences, anything custom, and the plan that fits. You'll head to checkout next."
+    >
+      <div className="space-y-7">
+        <Field label="Color preferences" hint="Pick one or two, or skip and we'll choose for you">
+          <div className="flex flex-wrap gap-3">
+            {COLOR_PRESETS.map((c) => {
+              const active = data.colors.includes(c);
+              return (
+                <motion.button
+                  key={c}
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => toggleColor(c)}
+                  className={`h-12 w-12 rounded-full transition-all ${active ? 'ring-2 ring-ink ring-offset-2' : 'ring-1 ring-black/10'}`}
+                  style={{ background: c }}
+                  aria-label={`Color ${c}`}
+                  aria-pressed={active}
+                />
+              );
+            })}
+          </div>
+        </Field>
+
+        <Field label="Anything custom?" hint="Sections you'd like highlighted, tone, inspiration. Optional.">
+          <textarea
+            value={data.customRequests}
+            onChange={(e) => update('customRequests', e.target.value)}
+            placeholder="e.g. Feature my hackathon projects, match the palette of stripe.com, include a testimonial from my manager..."
+            rows={4}
+            className={inputCls + ' resize-none'}
+          />
+        </Field>
+
+        <Field label="Choose your plan" hint="All plans charge $50 today. Recurring (if any) starts day 31.">
+          <div className="grid grid-cols-1 gap-3">
+            {PACKAGES.map((p) => {
+              const active = data.plan === p.id;
+              return (
+                <motion.button
+                  key={p.id}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => update('plan', p.id)}
+                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
+                    active
+                      ? 'border-ink shadow-[0_14px_40px_-16px_rgba(10,10,11,0.4)]'
+                      : 'border-black/10 hover:border-black/25'
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-4">
+                    <div className="text-lg font-semibold text-ink">{p.title}</div>
+                    <div className="text-base font-medium text-ink/80">{p.price}</div>
+                  </div>
+                  <div className="mt-1 text-sm text-ink/60">{p.blurb}</div>
+                  <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/60">
+                    {p.perks.map((x) => (
+                      <li key={x} className="flex items-center gap-1.5">
+                        <span className="inline-block h-1 w-1 rounded-full bg-[#22c55e]" /> {x}
+                      </li>
+                    ))}
+                  </ul>
+                  {active && (
+                    <motion.span
+                      layoutId="pkg-check"
+                      className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-white"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    </motion.span>
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+        </Field>
+      </div>
+    </StepShell>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <label className="text-sm font-medium text-ink">{label}</label>
+        {hint ? <span className="text-xs text-ink/45">{hint}</span> : null}
+      </div>
+      {children}
+    </div>
   );
 }
 

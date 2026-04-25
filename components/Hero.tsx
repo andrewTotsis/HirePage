@@ -40,9 +40,9 @@ export default function Hero() {
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 reveal reveal-delay-3">
             <CTAButton />
-            <CTAButton href="/onboarding" variant="secondary">
-              Create My HirePage (Guided)
-            </CTAButton>
+            <a href="#pricing" className="text-sm text-ink/65 hover:text-ink px-3 py-2">
+              See pricing →
+            </a>
           </div>
 
           <div className="mt-6 flex items-center justify-center gap-3 text-xs text-ink/55 reveal reveal-delay-4">

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { FORM_URL } from './CTAButton';
 
 export default function FinalCTA() {
@@ -35,10 +36,8 @@ export default function FinalCTA() {
               Join early users using HirePage to stand out, get noticed, and get hired.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <a
+              <Link
                 href={FORM_URL}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-white text-ink px-5 py-3 rounded-xl font-semibold transition-transform hover:-translate-y-0.5 shadow-soft"
                 aria-label="Create My HirePage"
               >
@@ -47,7 +46,7 @@ export default function FinalCTA() {
                   <path d="M5 12h14" />
                   <path d="m13 6 6 6-6 6" />
                 </svg>
-              </a>
+              </Link>
               <a
                 href="#pricing"
                 className="text-sm text-white/75 hover:text-white px-3 py-2"
