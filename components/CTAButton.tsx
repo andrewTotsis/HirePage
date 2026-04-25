@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export const FORM_URL = 'https://forms.fillout.com/t/39KHbwLLRHus';
+export const FORM_URL = '/onboarding';
 
 type Props = {
   children?: React.ReactNode;

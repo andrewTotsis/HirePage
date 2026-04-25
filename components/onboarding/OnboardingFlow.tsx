@@ -6,80 +6,46 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Logo from '../Logo';
 import ProgressBar from './ProgressBar';
 import {
-  ColorStep,
-  EmailStep,
-  GithubStep,
-  HeadshotStep,
-  LinkedInStep,
+  BasicsStep,
+  DesignStep,
   LoadingStep,
-  NameStep,
-  PackageStep,
-  PhoneStep,
-  RequestsStep,
-  ResumeUploadStep,
-  ReviewStep,
-  RolesStep,
-  StyleStep,
+  ProfileStep,
   SuccessStep,
   WelcomeStep,
 } from './steps';
-import { OnboardingData } from './types';
+import { OnboardingData, PackageId } from './types';
 import { reportProgress, useOnboardingState } from './useOnboardingState';
 
-type StepId =
-  | 'welcome'
-  | 'name'
-  | 'email'
-  | 'phone'
-  | 'roles'
-  | 'linkedin'
-  | 'github'
-  | 'resume'
-  | 'headshot'
-  | 'style'
-  | 'colors'
-  | 'requests'
-  | 'package'
-  | 'review'
-  | 'loading'
-  | 'success';
+type StepId = 'welcome' | 'basics' | 'profile' | 'design';
 
-const STEPS: StepId[] = [
-  'welcome',
-  'name',
-  'email',
-  'phone',
-  'roles',
-  'linkedin',
-  'github',
-  'resume',
-  'headshot',
-  'style',
-  'colors',
-  'requests',
-  'package',
-  'review',
-];
+const STEPS: StepId[] = ['welcome', 'basics', 'profile', 'design'];
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
+const STRIPE_LINKS: Record<PackageId, string> = {
+  basic: 'https://buy.stripe.com/9B6aEQeuvg6Wbj82jobjW00',
+  monthly: 'https://buy.stripe.com/bJefZa5XZ3kacnc0bgbjW01',
+  unlimited: 'https://buy.stripe.com/28E3codqrdYO0Eu5vAbjW02',
+};
+
 function canAdvanceFrom(step: StepId, data: OnboardingData): boolean {
   switch (step) {
-    case 'name':
-      return data.fullName.trim().length >= 2;
-    case 'email':
-      return isEmail(data.email);
-    case 'roles':
-      return data.roles.length > 0;
-    case 'resume':
-      return !!data.resume;
-    case 'style':
-      return !!data.style;
-    case 'package':
+    case 'basics':
+      return data.fullName.trim().length >= 2 && isEmail(data.email);
+    case 'profile':
+      return data.roles.length > 0 && !!data.resume;
+    case 'design':
       return !!data.plan;
     default:
       return true;
   }
+}
+
+function buildStripeUrl(plan: PackageId, email: string): string {
+  const base = STRIPE_LINKS[plan];
+  if (!email) return base;
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}client_reference_id=${encodeURIComponent(email)}&prefilled_email=${encodeURIComponent(email)}`;
 }
 
 export default function OnboardingFlow() {
@@ -94,16 +60,21 @@ export default function OnboardingFlow() {
 
   useEffect(() => {
     if (!hydrated || !leadId) return;
-    const t = setTimeout(() => reportProgress(leadId, stepId, data), 700);
+    const t = setTimeout(() => reportProgress(leadId, stepIdMap(stepId), data), 700);
     return () => clearTimeout(t);
   }, [hydrated, leadId, stepId, data]);
 
   const goNext = useCallback(() => {
     if (!canAdvance) return;
     if (isLast) {
+      const plan = data.plan;
+      if (!plan) return;
       if (leadId) reportProgress(leadId, 'submitted', data);
       setSubmitState('loading');
-      setTimeout(() => setSubmitState('success'), 3200);
+      const url = buildStripeUrl(plan, data.email);
+      setTimeout(() => {
+        window.location.href = url;
+      }, 1400);
       return;
     }
     setDirection(1);
@@ -115,46 +86,14 @@ export default function OnboardingFlow() {
     setStepIdx((i) => Math.max(i - 1, 0));
   }, []);
 
-  const jumpTo = useCallback((id: string) => {
-    const rowToStep: Record<string, StepId> = {
-      name: 'name',
-      email: 'email',
-      phone: 'phone',
-      roles: 'roles',
-      linkedin: 'linkedin',
-      github: 'github',
-      resume: 'resume',
-      headshot: 'headshot',
-      style: 'style',
-      colors: 'colors',
-      requests: 'requests',
-      package: 'package',
-    };
-    const target = rowToStep[id];
-    if (!target) return;
-    const idx = STEPS.indexOf(target);
-    if (idx >= 0) {
-      setDirection(-1);
-      setStepIdx(idx);
-    }
-  }, []);
-
   useEffect(() => {
     if (submitState !== 'idle') return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && (e.target as HTMLElement)?.tagName !== 'TEXTAREA') {
-        const isSelectable = stepId === 'style' || stepId === 'colors' || stepId === 'package' || stepId === 'roles' || stepId === 'resume' || stepId === 'headshot';
-        if (!isSelectable) {
-          e.preventDefault();
-          goNext();
-        }
-      } else if (e.key === 'Escape') {
-        goBack();
-      }
+      if (e.key === 'Escape') goBack();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [goNext, goBack, stepId, submitState]);
+  }, [goBack, submitState]);
 
   const variants = useMemo(
     () => ({
@@ -174,26 +113,15 @@ export default function OnboardingFlow() {
   const renderStep = () => {
     switch (stepId) {
       case 'welcome': return <WelcomeStep {...sharedProps} />;
-      case 'name': return <NameStep {...sharedProps} />;
-      case 'email': return <EmailStep {...sharedProps} />;
-      case 'phone': return <PhoneStep {...sharedProps} />;
-      case 'roles': return <RolesStep {...sharedProps} />;
-      case 'linkedin': return <LinkedInStep {...sharedProps} />;
-      case 'github': return <GithubStep {...sharedProps} />;
-      case 'resume': return <ResumeUploadStep {...sharedProps} />;
-      case 'headshot': return <HeadshotStep {...sharedProps} />;
-      case 'style': return <StyleStep {...sharedProps} />;
-      case 'colors': return <ColorStep {...sharedProps} />;
-      case 'requests': return <RequestsStep {...sharedProps} />;
-      case 'package': return <PackageStep {...sharedProps} />;
-      case 'review': return <ReviewStep {...sharedProps} jumpTo={jumpTo} />;
+      case 'basics': return <BasicsStep {...sharedProps} />;
+      case 'profile': return <ProfileStep {...sharedProps} />;
+      case 'design': return <DesignStep {...sharedProps} />;
       default: return null;
     }
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      {/* Top bar */}
       <div className="sticky top-0 z-20 border-b border-black/5 bg-white/85 backdrop-blur-md">
         <ProgressBar current={stepIdx} total={STEPS.length} />
         <div className="container-pro flex h-14 items-center justify-between">
@@ -215,7 +143,6 @@ export default function OnboardingFlow() {
         </div>
       </div>
 
-      {/* Body */}
       <main className="relative flex-1 overflow-hidden">
         <div className="container-pro flex min-h-[calc(100vh-3.5rem-0.25rem)] items-center justify-center py-12 md:py-16">
           <AnimatePresence mode="wait" custom={direction} initial={false}>
@@ -228,6 +155,9 @@ export default function OnboardingFlow() {
                 className="w-full"
               >
                 <LoadingStep />
+                <p className="mt-4 text-center text-sm text-ink/55">
+                  Redirecting you to secure checkout…
+                </p>
               </motion.div>
             ) : submitState === 'success' ? (
               <motion.div
@@ -256,7 +186,6 @@ export default function OnboardingFlow() {
         </div>
       </main>
 
-      {/* Footer nav */}
       {submitState === 'idle' && stepId !== 'welcome' && (
         <div className="sticky bottom-0 border-t border-black/5 bg-white/85 backdrop-blur-md">
           <div className="container-pro flex h-16 items-center justify-between gap-3">
@@ -272,31 +201,18 @@ export default function OnboardingFlow() {
               Back
             </button>
 
-            <div className="flex items-center gap-3">
-              {isOptional(stepId) && (
-                <button
-                  onClick={() => {
-                    setDirection(1);
-                    setStepIdx((i) => Math.min(i + 1, STEPS.length - 1));
-                  }}
-                  className="rounded-lg px-3 py-2 text-sm text-ink/60 transition-colors hover:text-ink"
-                >
-                  Skip
-                </button>
-              )}
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={goNext}
-                disabled={!canAdvance}
-                className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <span>{isLast ? 'Submit' : 'Continue'}</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14" />
-                  <path d="m13 6 6 6-6 6" />
-                </svg>
-              </motion.button>
-            </div>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={goNext}
+              disabled={!canAdvance}
+              className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <span>{isLast ? 'Continue to checkout' : 'Continue'}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" />
+                <path d="m13 6 6 6-6 6" />
+              </svg>
+            </motion.button>
           </div>
         </div>
       )}
@@ -304,6 +220,12 @@ export default function OnboardingFlow() {
   );
 }
 
-function isOptional(id: StepId) {
-  return id === 'phone' || id === 'linkedin' || id === 'github' || id === 'headshot' || id === 'colors' || id === 'requests';
+function stepIdMap(s: StepId): string {
+  switch (s) {
+    case 'welcome': return 'welcome';
+    case 'basics': return 'email';
+    case 'profile': return 'resume';
+    case 'design': return 'package';
+    default: return 'welcome';
+  }
 }
