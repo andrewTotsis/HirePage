@@ -17,7 +17,11 @@ export type GmailSettings = {
   connected_at: number;
 };
 
-export const GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.send'];
+export const GMAIL_SCOPES = [
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'openid',
+];
 
 export function getOAuthRedirectUri(baseUrl: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/api/admin/google/callback`;
@@ -90,11 +94,15 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
 }
 
 export async function getProfile(accessToken: string): Promise<{ emailAddress: string }> {
-  const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+  // Use OIDC userinfo — works with the `email` scope and avoids needing a Gmail read scope
+  // (gmail.googleapis.com/users/me/profile requires gmail.readonly/metadata/modify, not gmail.send)
+  const r = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!r.ok) throw new Error(`Profile fetch failed: ${r.status}`);
-  return (await r.json()) as any;
+  if (!r.ok) throw new Error(`Profile fetch failed: ${r.status} ${await r.text().then((s) => s.slice(0, 200))}`);
+  const j = (await r.json()) as { email?: string };
+  if (!j.email) throw new Error('Profile fetch returned no email');
+  return { emailAddress: j.email };
 }
 
 export async function getGmailSettings(): Promise<GmailSettings | null> {
