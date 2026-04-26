@@ -15,9 +15,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   if (!verifyCookie(c)) return unauthorized();
   const contact = await outreachStorage.getContact(params.id);
   if (!contact) return NextResponse.json({ error: 'not found' }, { status: 404 });
-  const enrollments = await outreachStorage.listEnrollmentsByContact(contact.id);
   const events = await outreachStorage.listEventsByContact(contact.id, 200);
-  return NextResponse.json({ contact, enrollments, events });
+  return NextResponse.json({ contact, events });
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {

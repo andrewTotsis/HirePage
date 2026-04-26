@@ -28,7 +28,7 @@ export async function GET(req: Request) {
       refresh_token: tok.refresh_token,
       access_token: tok.access_token,
       expires_at: Date.now() + tok.expires_in * 1000,
-      last_history_id: profile.historyId,
+      scope: tok.scope,
       connected_at: Date.now(),
     });
     return NextResponse.redirect(`${baseUrl}/admin/outreach/settings?gmail=connected`);

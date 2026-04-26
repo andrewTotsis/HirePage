@@ -1,17 +1,23 @@
 import { outreachStorage } from './outreach-storage';
-import { logEvent } from './outreach';
+
+/**
+ * Gmail OAuth + send-via-Gmail-API.
+ *
+ * Scope: https://www.googleapis.com/auth/gmail.send  (send only — no inbox read)
+ * - Send appears in the user's Sent folder
+ * - Replies land in their actual inbox naturally (no scanning needed)
+ */
 
 export type GmailSettings = {
   email: string;
   refresh_token: string;
   access_token?: string;
   expires_at?: number;
-  last_history_id?: string;
-  last_poll_ms?: number;
+  scope?: string;
   connected_at: number;
 };
 
-export const GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
+export const GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.send'];
 
 export function getOAuthRedirectUri(baseUrl: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/api/admin/google/callback`;
@@ -83,7 +89,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
   return (await r.json()) as any;
 }
 
-export async function getProfile(accessToken: string): Promise<{ emailAddress: string; messagesTotal: number; threadsTotal: number; historyId: string }> {
+export async function getProfile(accessToken: string): Promise<{ emailAddress: string }> {
   const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -118,110 +124,89 @@ export async function ensureFreshAccessToken(s: GmailSettings): Promise<{ token:
   return { token: t.access_token, settings: updated };
 }
 
-type GmailMessage = { id: string; threadId: string };
-type GmailListResponse = { messages?: GmailMessage[]; nextPageToken?: string; resultSizeEstimate?: number };
-type GmailHeader = { name: string; value: string };
-type GmailFullMessage = { id: string; threadId: string; internalDate?: string; payload?: { headers?: GmailHeader[] }; labelIds?: string[] };
+/* ---------------- Send ---------------- */
 
-async function listInboxMessages(token: string, query: string, max = 50): Promise<GmailMessage[]> {
-  const params = new URLSearchParams({ q: query, maxResults: String(max) });
-  const r = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${params.toString()}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!r.ok) throw new Error(`messages.list failed: ${r.status}`);
-  const j = (await r.json()) as GmailListResponse;
-  return j.messages ?? [];
+function base64UrlEncode(s: string): string {
+  return Buffer.from(s, 'utf-8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-async function getMessageMeta(token: string, id: string): Promise<GmailFullMessage> {
-  const params = new URLSearchParams({ format: 'metadata', metadataHeaders: 'From,Subject,Date,In-Reply-To,References' });
-  const r = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?${params.toString()}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!r.ok) throw new Error(`messages.get failed: ${r.status}`);
-  return (await r.json()) as GmailFullMessage;
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function getHeader(msg: GmailFullMessage, name: string): string {
-  const h = msg.payload?.headers?.find((x) => x.name.toLowerCase() === name.toLowerCase());
-  return h?.value ?? '';
+function plainToHtml(text: string): string {
+  if (/<\s*[a-zA-Z][^>]*>/.test(text)) return text;
+  return text
+    .split(/\n{2,}/)
+    .map((p) => `<p style="margin:0 0 12px 0;line-height:1.55;">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+    .join('');
 }
 
-function extractEmail(headerValue: string): string {
-  const m = headerValue.match(/<([^>]+)>/);
-  if (m) return m[1].trim().toLowerCase();
-  return headerValue.trim().toLowerCase();
+function encodeSubject(subject: string): string {
+  // Gmail accepts UTF-8 subjects via RFC 2047 encoded-word
+  if (/^[\x20-\x7E]*$/.test(subject)) return subject;
+  return `=?UTF-8?B?${Buffer.from(subject, 'utf-8').toString('base64')}?=`;
 }
 
-export type ReplyScanResult = {
-  scanned: number;
-  matched: number;
-  replies: Array<{ contact_id: string; email: string; subject: string; thread_id: string }>;
-  errors: string[];
+export type SendInput = {
+  toEmail: string;
+  toName?: string;
+  fromEmail: string;
+  fromName?: string;
+  subject: string;
+  body: string; // plain text or HTML
+  replyTo?: string;
+  threadId?: string;
 };
 
-/**
- * Scan inbox for messages from outreach contacts. Mark them as replied + pause active enrollments.
- * Polls messages newer than `lookbackHours` (default 48).
- */
-export async function scanForReplies(lookbackHours = 48): Promise<ReplyScanResult> {
-  const result: ReplyScanResult = { scanned: 0, matched: 0, replies: [], errors: [] };
+export type SendResult = {
+  ok: boolean;
+  message_id?: string;
+  thread_id?: string;
+  error?: string;
+};
+
+export async function sendViaGmail(input: SendInput): Promise<SendResult> {
   const settings = await getGmailSettings();
-  if (!settings) {
-    result.errors.push('Gmail not connected');
-    return result;
-  }
-  const { token, settings: refreshed } = await ensureFreshAccessToken(settings);
-  // Build query: in inbox, newer than X hours, not from self
-  const sinceMin = Math.floor(lookbackHours * 60);
-  const q = `in:inbox newer_than:${Math.max(1, Math.ceil(lookbackHours / 24))}d -from:${refreshed.email}`;
-  const list = await listInboxMessages(token, q, 50);
-  result.scanned = list.length;
-  for (const m of list) {
-    try {
-      const meta = await getMessageMeta(token, m.id);
-      const fromRaw = getHeader(meta, 'From');
-      const subject = getHeader(meta, 'Subject');
-      const fromEmail = extractEmail(fromRaw);
-      if (!fromEmail || fromEmail === refreshed.email) continue;
-      const internalMs = Number(meta.internalDate ?? 0);
-      // Only count messages received after we connected — don't replay the entire inbox history
-      if (internalMs && refreshed.connected_at && internalMs < refreshed.connected_at - 60 * 60 * 1000) continue;
-      const contact = await outreachStorage.getContactByEmail(fromEmail);
-      if (!contact) continue;
+  if (!settings) return { ok: false, error: 'gmail_not_connected' };
+  const { token } = await ensureFreshAccessToken(settings);
 
-      // Has this message already been logged? Check existing events for this gmail message id
-      const existingEvents = await outreachStorage.listEventsByContact(contact.id, 100);
-      if (existingEvents.some((e) => e.type === 'replied' && (e.meta as any)?.gmail_id === m.id)) continue;
+  const fromHeader = input.fromName
+    ? `${encodeSubject(input.fromName)} <${input.fromEmail}>`
+    : input.fromEmail;
+  const toHeader = input.toName
+    ? `${encodeSubject(input.toName)} <${input.toEmail}>`
+    : input.toEmail;
 
-      // Mark replied + pause/stop active enrollments
-      const enrollments = await outreachStorage.listEnrollmentsByContact(contact.id);
-      for (const en of enrollments) {
-        if (en.status === 'active' || en.status === 'paused') {
-          await outreachStorage.putEnrollment({
-            ...en,
-            status: 'stopped',
-            next_send_at: null,
-            updated_at: Date.now(),
-          });
-        }
-      }
-      const activeEnrollment = enrollments.find((e) => e.status === 'active' || e.status === 'paused' || e.status === 'stopped');
-      await logEvent({
-        contact_id: contact.id,
-        enrollment_id: activeEnrollment?.id ?? null,
-        sequence_id: activeEnrollment?.sequence_id ?? null,
-        step_idx: activeEnrollment?.current_step ?? null,
-        type: 'replied',
-        meta: { gmail_id: m.id, gmail_thread: m.threadId, subject, from: fromEmail },
-        ts: internalMs || Date.now(),
-      });
-      result.matched++;
-      result.replies.push({ contact_id: contact.id, email: fromEmail, subject, thread_id: m.threadId });
-    } catch (e) {
-      result.errors.push(e instanceof Error ? e.message : String(e));
-    }
+  const html = plainToHtml(input.body);
+
+  const lines = [
+    `From: ${fromHeader}`,
+    `To: ${toHeader}`,
+    `Subject: ${encodeSubject(input.subject)}`,
+    input.replyTo ? `Reply-To: ${input.replyTo}` : '',
+    `MIME-Version: 1.0`,
+    `Content-Type: text/html; charset=UTF-8`,
+    `Content-Transfer-Encoding: 8bit`,
+    ``,
+    html,
+  ].filter(Boolean);
+  const raw = base64UrlEncode(lines.join('\r\n'));
+
+  const body: Record<string, string> = { raw };
+  if (input.threadId) body.threadId = input.threadId;
+
+  const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const errText = await r.text();
+    return { ok: false, error: `Gmail ${r.status}: ${errText.slice(0, 240)}` };
   }
-  await putGmailSettings({ ...refreshed, last_poll_ms: Date.now() });
-  return result;
+  const j = (await r.json()) as { id?: string; threadId?: string };
+  return { ok: true, message_id: j.id, thread_id: j.threadId };
 }

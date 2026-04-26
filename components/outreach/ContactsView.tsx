@@ -3,38 +3,38 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Contact, fullName, relTime, Sequence } from './types';
+import { Contact, fullName, relTime } from './types';
+import Composer from './Composer';
 
 type Status = 'all' | 'active' | 'unsubscribed' | 'bounced';
 
 export default function ContactsView() {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [sequences, setSequences] = useState<Sequence[]>([]);
+  const [stats, setStats] = useState<{ gmail_connected: boolean; gmail_email: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<Status>('all');
   const [tagFilter, setTagFilter] = useState<string>('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showAdd, setShowAdd] = useState<'none' | 'single' | 'bulk'>('none');
-  const [showEnroll, setShowEnroll] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
 
   const reload = async () => {
     try {
       const [r1, r2] = await Promise.all([
         fetch('/api/admin/outreach/contacts', { cache: 'no-store' }),
-        fetch('/api/admin/outreach/sequences', { cache: 'no-store' }),
+        fetch('/api/admin/outreach/stats', { cache: 'no-store' }),
       ]);
       const j1 = await r1.json();
       const j2 = await r2.json();
       setContacts(j1.contacts ?? []);
-      setSequences(j2.sequences ?? []);
+      setStats({ gmail_connected: !!j2.gmail_connected, gmail_email: j2.gmail_email ?? null });
     } catch {}
     setLoading(false);
   };
-
-  useEffect(() => {
-    reload();
-  }, []);
+  useEffect(() => { reload(); }, []);
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
@@ -55,6 +55,8 @@ export default function ContactsView() {
     });
   }, [contacts, query, status, tagFilter]);
 
+  const selectedContacts = useMemo(() => contacts.filter((c) => selected.has(c.id)), [contacts, selected]);
+
   const toggleAll = () => {
     if (selected.size === filtered.length) setSelected(new Set());
     else setSelected(new Set(filtered.map((c) => c.id)));
@@ -72,23 +74,18 @@ export default function ContactsView() {
     reload();
   };
 
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const bulkAI = async (overwrite: boolean) => {
+  const bulkAI = async () => {
     setAiBusy(true);
     setAiSummary(null);
     try {
       const r = await fetch('/api/admin/outreach/ai/intro/bulk', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ contact_ids: Array.from(selected), overwrite }),
+        body: JSON.stringify({ contact_ids: Array.from(selected), overwrite: false }),
       });
       const j = await r.json();
-      if (!r.ok) {
-        setAiSummary(j.error || 'Failed');
-      } else {
-        setAiSummary(`Generated ${j.generated} · skipped ${j.skipped} · errors ${j.errors}`);
-      }
+      if (!r.ok) setAiSummary(j.error || 'Failed');
+      else setAiSummary(`Generated ${j.generated} · skipped ${j.skipped} · errors ${j.errors}`);
       await reload();
     } finally {
       setAiBusy(false);
@@ -97,27 +94,19 @@ export default function ContactsView() {
 
   return (
     <main className="mx-auto max-w-[1500px] px-6 pb-24 pt-6">
-      <div className="mb-6 flex items-end justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Link href="/admin/outreach" className="text-xs text-white/45 hover:text-white/70">
-            ← Outreach
-          </Link>
+          <Link href="/admin/outreach" className="text-xs text-white/45 hover:text-white/70">← Outreach</Link>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">Contacts</h1>
           <p className="mt-1 text-sm text-white/55">
-            {contacts.length.toLocaleString()} total · {contacts.filter((c) => !c.unsubscribed && !c.bounced).length.toLocaleString()} sendable
+            {contacts.length.toLocaleString()} total · {contacts.filter((c) => !c.unsubscribed && !c.bounced && !!c.email).length.toLocaleString()} sendable
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowAdd('bulk')}
-            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm transition-all hover:border-white/20 hover:bg-white/10"
-          >
+          <button onClick={() => setShowAdd('bulk')} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm transition-all hover:border-white/20 hover:bg-white/10">
             Paste / import
           </button>
-          <button
-            onClick={() => setShowAdd('single')}
-            className="rounded-xl bg-white px-3 py-2 text-sm font-medium text-black transition-all hover:bg-white/90"
-          >
+          <button onClick={() => setShowAdd('single')} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm transition-all hover:border-white/20 hover:bg-white/10">
             Add contact
           </button>
         </div>
@@ -125,50 +114,38 @@ export default function ContactsView() {
 
       <div className="rounded-2xl border border-white/5 bg-white/[0.02]">
         <div className="flex flex-wrap items-center gap-2 border-b border-white/5 p-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, email, company, title…"
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm outline-none transition-all placeholder:text-white/35 focus:border-white/25"
-            />
-          </div>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as Status)}
-            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-white/25"
-          >
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name, email, company, title…"
+            className="flex-1 min-w-[200px] rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm outline-none transition-all placeholder:text-white/35 focus:border-white/25"
+          />
+          <select value={status} onChange={(e) => setStatus(e.target.value as Status)} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-white/25">
             <option value="all">All</option>
             <option value="active">Sendable</option>
             <option value="unsubscribed">Unsubscribed</option>
             <option value="bounced">Bounced</option>
           </select>
           {allTags.length > 0 && (
-            <select
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-white/25"
-            >
+            <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-white/25">
               <option value="">All tags</option>
               {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           )}
-          <div className="ml-auto text-xs text-white/45">
-            {filtered.length} shown · {selected.size} selected
-          </div>
+          <div className="ml-auto text-xs text-white/45">{filtered.length} shown · {selected.size} selected</div>
         </div>
 
         {selected.size > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-b border-white/5 bg-white/[0.03] px-4 py-2 text-sm">
             <span className="text-white/65">{selected.size} selected</span>
             <button
-              onClick={() => setShowEnroll(true)}
+              onClick={() => setShowCompose(true)}
               className="ml-2 rounded-lg bg-white px-3 py-1 text-xs font-medium text-black hover:bg-white/90"
             >
-              Enroll in sequence
+              Compose &amp; send
             </button>
             <button
-              onClick={() => bulkAI(false)}
+              onClick={bulkAI}
               disabled={aiBusy}
               className="rounded-lg border border-[#a855f7]/40 bg-[#a855f7]/10 px-3 py-1 text-xs text-[#d8b4fe] hover:bg-[#a855f7]/20 disabled:opacity-50"
               title="Generate AI personalized intros for selected contacts"
@@ -181,12 +158,7 @@ export default function ContactsView() {
             >
               Delete
             </button>
-            <button
-              onClick={() => setSelected(new Set())}
-              className="rounded-lg px-3 py-1 text-xs text-white/45 hover:text-white/75"
-            >
-              Clear
-            </button>
+            <button onClick={() => setSelected(new Set())} className="rounded-lg px-3 py-1 text-xs text-white/45 hover:text-white/75">Clear</button>
             {aiSummary && <span className="ml-2 text-xs text-white/65">{aiSummary}</span>}
           </div>
         )}
@@ -196,13 +168,8 @@ export default function ContactsView() {
         ) : filtered.length === 0 ? (
           <div className="flex h-72 flex-col items-center justify-center gap-2 text-center">
             <div className="text-base font-semibold text-white/85">No contacts yet</div>
-            <div className="max-w-sm text-sm text-white/55">
-              Add a single contact or paste a list of emails / LinkedIn URLs to get started.
-            </div>
-            <button
-              onClick={() => setShowAdd('bulk')}
-              className="mt-3 rounded-xl bg-white px-3 py-1.5 text-sm font-medium text-black transition-all hover:bg-white/90"
-            >
+            <div className="max-w-sm text-sm text-white/55">Add a single contact or paste a list of emails / LinkedIn URLs to get started.</div>
+            <button onClick={() => setShowAdd('bulk')} className="mt-3 rounded-xl bg-white px-3 py-1.5 text-sm font-medium text-black transition-all hover:bg-white/90">
               Paste a list
             </button>
           </div>
@@ -212,12 +179,7 @@ export default function ContactsView() {
               <thead>
                 <tr className="border-b border-white/5 bg-white/[0.02] text-left text-[11px] font-medium uppercase tracking-[0.14em] text-white/40">
                   <th className="px-4 py-3 w-8">
-                    <input
-                      type="checkbox"
-                      checked={selected.size === filtered.length && filtered.length > 0}
-                      onChange={toggleAll}
-                      className="cursor-pointer"
-                    />
+                    <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} className="cursor-pointer" />
                   </th>
                   <th className="px-4 py-3">Contact</th>
                   <th className="px-4 py-3">Company / title</th>
@@ -230,13 +192,7 @@ export default function ContactsView() {
                 {filtered.map((c) => (
                   <tr key={c.id} className="border-b border-white/[0.04] transition-colors hover:bg-white/[0.025]">
                     <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(c.id)}
-                        onChange={() => toggle(c.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer"
-                      />
+                      <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} onClick={(e) => e.stopPropagation()} className="cursor-pointer" />
                     </td>
                     <td className="px-4 py-3">
                       <Link href={`/admin/outreach/contacts/${c.id}`} className="block">
@@ -271,15 +227,17 @@ export default function ContactsView() {
       <AnimatePresence>
         {showAdd === 'single' && <AddSingleModal onClose={() => setShowAdd('none')} onAdded={reload} />}
         {showAdd === 'bulk' && <BulkImportModal onClose={() => setShowAdd('none')} onDone={reload} />}
-        {showEnroll && (
-          <EnrollModal
-            ids={Array.from(selected)}
-            sequences={sequences}
-            onClose={() => setShowEnroll(false)}
-            onDone={() => { setShowEnroll(false); setSelected(new Set()); reload(); }}
-          />
-        )}
       </AnimatePresence>
+
+      {showCompose && (
+        <Composer
+          contacts={selectedContacts}
+          fromEmail={stats?.gmail_email ?? null}
+          gmailConnected={!!stats?.gmail_connected}
+          onClose={() => setShowCompose(false)}
+          onSent={() => { setSelected(new Set()); reload(); }}
+        />
+      )}
     </main>
   );
 }
@@ -293,19 +251,11 @@ function StatusBadge({ contact }: { contact: Contact }) {
 function Modal({ children, onClose, title, footer }: { children: React.ReactNode; onClose: () => void; title: string; footer?: React.ReactNode }) {
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 20, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#0c0c0e]"
-      >
+      <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#0c0c0e]">
         <div className="flex items-center justify-between border-b border-white/5 px-5 py-3">
           <div className="text-sm font-semibold">{title}</div>
           <button onClick={onClose} className="rounded-lg px-2 py-1 text-white/55 hover:bg-white/5 hover:text-white">×</button>
@@ -380,7 +330,6 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<any>(null);
-
   const submit = async () => {
     setBusy(true); setSummary(null);
     try {
@@ -392,11 +341,8 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
       const j = await r.json();
       setSummary(j.summary);
       onDone();
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   };
-
   return (
     <Modal
       title="Paste contacts"
@@ -427,70 +373,6 @@ sara@acme.com,Sara,Lee,Acme,VP Marketing`}
       {summary && (
         <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/75">
           Added {summary.added} · Updated {summary.updated} · Skipped {summary.skipped} · Invalid {summary.invalid}
-        </div>
-      )}
-    </Modal>
-  );
-}
-
-function EnrollModal({ ids, sequences, onClose, onDone }: { ids: string[]; sequences: Sequence[]; onClose: () => void; onDone: () => void }) {
-  const [seqId, setSeqId] = useState<string>(sequences[0]?.id ?? '');
-  const [busy, setBusy] = useState(false);
-  const [summary, setSummary] = useState<any>(null);
-
-  const submit = async () => {
-    if (!seqId) return;
-    setBusy(true);
-    try {
-      const r = await fetch(`/api/admin/outreach/sequences/${seqId}/enroll`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ contact_ids: ids }),
-      });
-      const j = await r.json();
-      setSummary(j.summary);
-      setTimeout(onDone, 800);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Modal
-      title={`Enroll ${ids.length} contact${ids.length === 1 ? '' : 's'} in sequence`}
-      onClose={onClose}
-      footer={
-        <>
-          <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-white/65 hover:text-white">Cancel</button>
-          <button onClick={submit} disabled={busy || !seqId} className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-white/90 disabled:opacity-50">
-            {busy ? 'Enrolling…' : 'Enroll'}
-          </button>
-        </>
-      }
-    >
-      {sequences.length === 0 ? (
-        <div>
-          <p className="text-sm text-white/65">You don&rsquo;t have any sequences yet.</p>
-          <Link href="/admin/outreach/sequences/new" className="mt-3 inline-flex rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-black">
-            Create a sequence
-          </Link>
-        </div>
-      ) : (
-        <select
-          value={seqId}
-          onChange={(e) => setSeqId(e.target.value)}
-          className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-white/25"
-        >
-          {sequences.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name} · {s.steps.length} step{s.steps.length === 1 ? '' : 's'} · {s.status}
-            </option>
-          ))}
-        </select>
-      )}
-      {summary && (
-        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/75">
-          Enrolled {summary.enrolled} · Skipped {summary.skipped}
         </div>
       )}
     </Modal>

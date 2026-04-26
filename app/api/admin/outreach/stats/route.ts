@@ -2,11 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { ADMIN_COOKIE, verifyCookie } from '@/lib/admin-auth';
 import { outreachStorage } from '@/lib/outreach-storage';
-import { computeGlobalStats } from '@/lib/outreach';
-import { isEmailConfigured, fromAddress } from '@/lib/email';
 import { isAIConfigured } from '@/lib/anthropic';
 import { getGmailSettings } from '@/lib/gmail';
-import { warmupStatus } from '@/lib/warmup';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,35 +15,29 @@ function unauthorized() {
 export async function GET() {
   const c = cookies().get(ADMIN_COOKIE)?.value;
   if (!verifyCookie(c)) return unauthorized();
-  const [contacts, sequences, enrollments, stats, gmail, warmup] = await Promise.all([
+  const [contacts, gmail, allEvents] = await Promise.all([
     outreachStorage.listContacts(),
-    outreachStorage.listSequences(),
-    outreachStorage.listAllEnrollments(),
-    computeGlobalStats(),
     getGmailSettings(),
-    warmupStatus(),
+    outreachStorage.listEventsAll(2000),
   ]);
+  const sent = allEvents.filter((e) => e.type === 'sent').length;
+  const sentToday = allEvents.filter((e) => e.type === 'sent' && e.ts >= startOfTodayMs()).length;
   return NextResponse.json({
     contacts: contacts.length,
+    sendable: contacts.filter((c) => !c.unsubscribed && !c.bounced && !!c.email).length,
     unsubscribed: contacts.filter((c) => c.unsubscribed).length,
     bounced: contacts.filter((c) => c.bounced).length,
-    sequences: sequences.length,
-    active_sequences: sequences.filter((s) => s.status === 'active').length,
-    enrollments: enrollments.length,
-    active_enrollments: enrollments.filter((e) => e.status === 'active').length,
-    stats,
-    email_configured: isEmailConfigured(),
-    from: fromAddress(),
+    sent_total: sent,
+    sent_today: sentToday,
     ai_configured: isAIConfigured(),
     google_oauth_configured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     gmail_connected: !!gmail,
     gmail_email: gmail?.email ?? null,
-    warmup: {
-      enabled: warmup.enabled,
-      day: warmup.day,
-      cap: Number.isFinite(warmup.cap) ? warmup.cap : null,
-      sent_today: warmup.sent_today,
-      remaining_today: Number.isFinite(warmup.remaining_today) ? warmup.remaining_today : null,
-    },
   });
+}
+
+function startOfTodayMs(): number {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d.getTime();
 }
