@@ -143,8 +143,8 @@ export default function OnboardingFlow() {
         </div>
       </div>
 
-      <main className="relative flex-1 overflow-hidden">
-        <div className="container-pro flex min-h-[calc(100vh-3.5rem-4rem)] items-start justify-center py-6 md:py-8">
+      <main className="relative flex-1 overflow-y-auto">
+        <div className="container-pro flex min-h-[calc(100vh-3.5rem-4rem)] items-center justify-center py-10 md:py-14">
           <AnimatePresence mode="wait" custom={direction} initial={false}>
             {submitState === 'loading' ? (
               <motion.div
