@@ -509,7 +509,7 @@ export function BasicsStep({ data, update }: StepProps) {
       title="Tell us who you are"
       subtitle="The basics. We'll use these to set up your HirePage."
     >
-      <div className="space-y-4">
+      <div className="space-y-6">
         <Field label="Full name">
           <input
             value={data.fullName}
@@ -577,7 +577,7 @@ export function ProfileStep({ data, update }: StepProps) {
       title="What's your story?"
       subtitle="Roles you're targeting, links to your work, and your resume."
     >
-      <div className="space-y-4">
+      <div className="space-y-6">
         <Field label="Roles you're applying for" hint="Press Enter after each one">
           <div className="rounded-xl border border-black/10 bg-white p-2.5 transition-all focus-within:border-black/30 focus-within:ring-4 focus-within:ring-black/5">
             <div className="flex flex-wrap gap-1.5">
@@ -624,46 +624,44 @@ export function ProfileStep({ data, update }: StepProps) {
           </div>
         </Field>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="LinkedIn" hint="Optional">
-            <input
-              type="url"
-              value={data.linkedin}
-              onChange={(e) => update('linkedin', e.target.value)}
-              placeholder="linkedin.com/in/yourname"
-              className={inputCls}
-            />
-          </Field>
-          <Field label="GitHub / portfolio" hint="Optional">
-            <input
-              type="url"
-              value={data.github}
-              onChange={(e) => update('github', e.target.value)}
-              placeholder="github.com/yourname"
-              className={inputCls}
-            />
-          </Field>
-        </div>
+        <Field label="LinkedIn" hint="Optional">
+          <input
+            type="url"
+            value={data.linkedin}
+            onChange={(e) => update('linkedin', e.target.value)}
+            placeholder="linkedin.com/in/yourname"
+            className={inputCls}
+          />
+        </Field>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Resume" hint="PDF, DOC, or DOCX">
-            <FileDrop
-              accept=".pdf,.doc,.docx"
-              value={data.resume}
-              onChange={(f) => update('resume', f)}
-              hint="Drop your resume here"
-            />
-          </Field>
-          <Field label="Headshot" hint="Optional — JPG or PNG">
-            <FileDrop
-              accept="image/*"
-              preview
-              value={data.headshot}
-              onChange={(f) => update('headshot', f)}
-              hint="A friendly photo helps"
-            />
-          </Field>
-        </div>
+        <Field label="GitHub / portfolio" hint="Optional">
+          <input
+            type="url"
+            value={data.github}
+            onChange={(e) => update('github', e.target.value)}
+            placeholder="github.com/yourname"
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label="Resume" hint="PDF, DOC, or DOCX">
+          <FileDrop
+            accept=".pdf,.doc,.docx"
+            value={data.resume}
+            onChange={(f) => update('resume', f)}
+            hint="Drop your resume here"
+          />
+        </Field>
+
+        <Field label="Headshot" hint="Optional — JPG or PNG">
+          <FileDrop
+            accept="image/*"
+            preview
+            value={data.headshot}
+            onChange={(f) => update('headshot', f)}
+            hint="A friendly photo helps"
+          />
+        </Field>
       </div>
     </StepShell>
   );
@@ -681,40 +679,37 @@ export function DesignStep({ data, update }: StepProps) {
       eyebrow="Step 3 of 3 · Design & plan"
       title="Make it yours, then pick a plan"
       subtitle="Color preferences, anything custom, and the plan that fits. Checkout next."
-      width="wide"
     >
-      <div className="space-y-5">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.4fr]">
-          <Field label="Color preferences" hint="Pick one or two, or skip">
-            <div className="flex flex-wrap gap-2">
-              {COLOR_PRESETS.map((c) => {
-                const active = data.colors.includes(c);
-                return (
-                  <motion.button
-                    key={c}
-                    whileHover={{ scale: 1.08 }}
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => toggleColor(c)}
-                    className={`h-9 w-9 rounded-full transition-all ${active ? 'ring-2 ring-ink ring-offset-2' : 'ring-1 ring-black/10'}`}
-                    style={{ background: c }}
-                    aria-label={`Color ${c}`}
-                    aria-pressed={active}
-                  />
-                );
-              })}
-            </div>
-          </Field>
+      <div className="space-y-6">
+        <Field label="Color preferences" hint="Pick one or two, or skip">
+          <div className="flex flex-wrap gap-2">
+            {COLOR_PRESETS.map((c) => {
+              const active = data.colors.includes(c);
+              return (
+                <motion.button
+                  key={c}
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => toggleColor(c)}
+                  className={`h-9 w-9 rounded-full transition-all ${active ? 'ring-2 ring-ink ring-offset-2' : 'ring-1 ring-black/10'}`}
+                  style={{ background: c }}
+                  aria-label={`Color ${c}`}
+                  aria-pressed={active}
+                />
+              );
+            })}
+          </div>
+        </Field>
 
-          <Field label="Anything custom?" hint="Sections to highlight, tone, inspiration. Optional.">
-            <textarea
-              value={data.customRequests}
-              onChange={(e) => update('customRequests', e.target.value)}
-              placeholder="e.g. Feature my hackathon projects, match the palette of stripe.com..."
-              rows={3}
-              className={inputCls + ' resize-none'}
-            />
-          </Field>
-        </div>
+        <Field label="Anything custom?" hint="Sections to highlight, tone, inspiration. Optional.">
+          <textarea
+            value={data.customRequests}
+            onChange={(e) => update('customRequests', e.target.value)}
+            placeholder="e.g. Feature my hackathon projects, match the palette of stripe.com..."
+            rows={3}
+            className={inputCls + ' resize-none'}
+          />
+        </Field>
 
         <Field label="Choose your plan" hint="$50 charged today. Recurring (if any) starts day 31.">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
