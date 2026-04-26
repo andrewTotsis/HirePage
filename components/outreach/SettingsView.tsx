@@ -52,7 +52,7 @@ export default function SettingsView() {
             <div>
               <div className="text-sm font-semibold">Gmail · sending</div>
               <p className="mt-1 max-w-xl text-sm text-white/55">
-                Connect your Gmail (e.g. <span className="font-mono text-white/75">andrew@hirepage.app</span>). Outreach sends through the Gmail API — emails appear in your Sent folder, replies land in your inbox naturally.
+                Connect your Gmail (e.g. <span className="font-mono text-white/75">support@hirepage.app</span>). Outreach sends through the Gmail API — emails appear in your Sent folder, replies land in your inbox naturally.
               </p>
               <p className="mt-2 text-xs text-white/45">
                 OAuth scope: <code className="font-mono">gmail.send</code>. We can&rsquo;t read your inbox.
@@ -73,7 +73,7 @@ export default function SettingsView() {
               <span className="font-medium">Setup needed.</span>{' '}
               <span className="text-[#fbbf24]/85">
                 Set <code className="font-mono">GOOGLE_CLIENT_ID</code> and <code className="font-mono">GOOGLE_CLIENT_SECRET</code> in Vercel.
-                In Google Cloud Console: enable Gmail API, OAuth consent screen with test user andrew@hirepage.app, Web Application credentials, redirect URI <code className="font-mono">https://hirepage.app/api/admin/google/callback</code>, scope <code className="font-mono">gmail.send</code>.
+                In Google Cloud Console: enable Gmail API, OAuth consent screen with test user support@hirepage.app, Web Application credentials, redirect URI <code className="font-mono">https://hirepage.app/api/admin/google/callback</code>, scope <code className="font-mono">gmail.send</code>.
               </span>
             </div>
           )}

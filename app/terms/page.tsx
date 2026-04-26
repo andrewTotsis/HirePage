@@ -32,7 +32,7 @@ export default function TermsPage() {
             non-refundable but cancelable.
           </p>
           <h2 className="text-xl font-semibold mt-6">Contact</h2>
-          <p>Questions about these terms? Email hirepagehq@gmail.com.</p>
+          <p>Questions about these terms? Email support@hirepage.app.</p>
         </div>
       </main>
       <Footer />
