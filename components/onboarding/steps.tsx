@@ -16,7 +16,10 @@ type StepProps = {
 /* ---------- shared input styles ---------- */
 
 const inputCls =
-  'w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-lg text-ink placeholder-ink/35 outline-none transition-all focus:border-black/30 focus:ring-4 focus:ring-black/5';
+  'w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-[15px] text-ink placeholder-ink/35 outline-none transition-all focus:border-black/30 focus:ring-4 focus:ring-black/5';
+
+const selectCls =
+  'rounded-xl border border-black/10 bg-white px-3 py-3 text-[15px] text-ink outline-none transition-all focus:border-black/30 focus:ring-4 focus:ring-black/5';
 
 /* ---------- Welcome ---------- */
 
@@ -506,7 +509,7 @@ export function BasicsStep({ data, update }: StepProps) {
       title="Tell us who you are"
       subtitle="The basics. We'll use these to set up your HirePage."
     >
-      <div className="space-y-5">
+      <div className="space-y-4">
         <Field label="Full name">
           <input
             value={data.fullName}
@@ -532,7 +535,7 @@ export function BasicsStep({ data, update }: StepProps) {
             <select
               value={data.phoneCountry}
               onChange={(e) => update('phoneCountry', e.target.value)}
-              className="rounded-2xl border border-black/10 bg-white px-4 py-4 text-lg text-ink outline-none transition-all focus:border-black/30 focus:ring-4 focus:ring-black/5"
+              className={selectCls}
               aria-label="Country code"
             >
               {countries.map((c) => (
@@ -574,17 +577,17 @@ export function ProfileStep({ data, update }: StepProps) {
       title="What's your story?"
       subtitle="Roles you're targeting, links to your work, and your resume."
     >
-      <div className="space-y-5">
+      <div className="space-y-4">
         <Field label="Roles you're applying for" hint="Press Enter after each one">
-          <div className="rounded-2xl border border-black/10 bg-white p-3 transition-all focus-within:border-black/30 focus-within:ring-4 focus-within:ring-black/5">
-            <div className="flex flex-wrap gap-2">
+          <div className="rounded-xl border border-black/10 bg-white p-2.5 transition-all focus-within:border-black/30 focus-within:ring-4 focus-within:ring-black/5">
+            <div className="flex flex-wrap gap-1.5">
               {data.roles.map((r) => (
                 <motion.span
                   key={r}
                   layout
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-ink text-white px-3 py-1.5 text-sm"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-ink text-white px-2.5 py-1 text-[13px]"
                 >
                   {r}
                   <button onClick={() => remove(r)} className="opacity-70 hover:opacity-100" aria-label={`Remove ${r}`}>×</button>
@@ -602,18 +605,18 @@ export function ProfileStep({ data, update }: StepProps) {
                   }
                 }}
                 placeholder={data.roles.length ? 'Add another...' : 'e.g. Software Engineer'}
-                className="flex-1 min-w-[140px] bg-transparent px-2 py-1.5 text-base outline-none"
+                className="flex-1 min-w-[140px] bg-transparent px-2 py-1 text-[14px] outline-none"
               />
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {suggestions
               .filter((s) => !data.roles.includes(s))
               .map((s) => (
                 <button
                   key={s}
                   onClick={() => commit(s)}
-                  className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm text-ink/70 transition-all hover:border-black/30 hover:text-ink"
+                  className="rounded-full border border-black/10 bg-white px-2.5 py-1 text-[13px] text-ink/65 transition-all hover:border-black/30 hover:text-ink"
                 >
                   + {s}
                 </button>
@@ -621,7 +624,7 @@ export function ProfileStep({ data, update }: StepProps) {
           </div>
         </Field>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="LinkedIn" hint="Optional">
             <input
               type="url"
@@ -642,24 +645,25 @@ export function ProfileStep({ data, update }: StepProps) {
           </Field>
         </div>
 
-        <Field label="Resume" hint="PDF, DOC, or DOCX">
-          <FileDrop
-            accept=".pdf,.doc,.docx"
-            value={data.resume}
-            onChange={(f) => update('resume', f)}
-            hint="Drop your resume — we'll pull the content from here"
-          />
-        </Field>
-
-        <Field label="Headshot" hint="Optional — JPG or PNG, square works best">
-          <FileDrop
-            accept="image/*"
-            preview
-            value={data.headshot}
-            onChange={(f) => update('headshot', f)}
-            hint="A friendly photo helps recruiters connect"
-          />
-        </Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Resume" hint="PDF, DOC, or DOCX">
+            <FileDrop
+              accept=".pdf,.doc,.docx"
+              value={data.resume}
+              onChange={(f) => update('resume', f)}
+              hint="Drop your resume here"
+            />
+          </Field>
+          <Field label="Headshot" hint="Optional — JPG or PNG">
+            <FileDrop
+              accept="image/*"
+              preview
+              value={data.headshot}
+              onChange={(f) => update('headshot', f)}
+              hint="A friendly photo helps"
+            />
+          </Field>
+        </div>
       </div>
     </StepShell>
   );
@@ -676,41 +680,44 @@ export function DesignStep({ data, update }: StepProps) {
     <StepShell
       eyebrow="Step 3 of 3 · Design & plan"
       title="Make it yours, then pick a plan"
-      subtitle="Color preferences, anything custom, and the plan that fits. You'll head to checkout next."
+      subtitle="Color preferences, anything custom, and the plan that fits. Checkout next."
+      width="wide"
     >
-      <div className="space-y-7">
-        <Field label="Color preferences" hint="Pick one or two, or skip and we'll choose for you">
-          <div className="flex flex-wrap gap-3">
-            {COLOR_PRESETS.map((c) => {
-              const active = data.colors.includes(c);
-              return (
-                <motion.button
-                  key={c}
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => toggleColor(c)}
-                  className={`h-12 w-12 rounded-full transition-all ${active ? 'ring-2 ring-ink ring-offset-2' : 'ring-1 ring-black/10'}`}
-                  style={{ background: c }}
-                  aria-label={`Color ${c}`}
-                  aria-pressed={active}
-                />
-              );
-            })}
-          </div>
-        </Field>
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.4fr]">
+          <Field label="Color preferences" hint="Pick one or two, or skip">
+            <div className="flex flex-wrap gap-2">
+              {COLOR_PRESETS.map((c) => {
+                const active = data.colors.includes(c);
+                return (
+                  <motion.button
+                    key={c}
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => toggleColor(c)}
+                    className={`h-9 w-9 rounded-full transition-all ${active ? 'ring-2 ring-ink ring-offset-2' : 'ring-1 ring-black/10'}`}
+                    style={{ background: c }}
+                    aria-label={`Color ${c}`}
+                    aria-pressed={active}
+                  />
+                );
+              })}
+            </div>
+          </Field>
 
-        <Field label="Anything custom?" hint="Sections you'd like highlighted, tone, inspiration. Optional.">
-          <textarea
-            value={data.customRequests}
-            onChange={(e) => update('customRequests', e.target.value)}
-            placeholder="e.g. Feature my hackathon projects, match the palette of stripe.com, include a testimonial from my manager..."
-            rows={4}
-            className={inputCls + ' resize-none'}
-          />
-        </Field>
+          <Field label="Anything custom?" hint="Sections to highlight, tone, inspiration. Optional.">
+            <textarea
+              value={data.customRequests}
+              onChange={(e) => update('customRequests', e.target.value)}
+              placeholder="e.g. Feature my hackathon projects, match the palette of stripe.com..."
+              rows={3}
+              className={inputCls + ' resize-none'}
+            />
+          </Field>
+        </div>
 
-        <Field label="Choose your plan" hint="All plans charge $50 today. Recurring (if any) starts day 31.">
-          <div className="grid grid-cols-1 gap-3">
+        <Field label="Choose your plan" hint="$50 charged today. Recurring (if any) starts day 31.">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {PACKAGES.map((p) => {
               const active = data.plan === p.id;
               return (
@@ -719,30 +726,28 @@ export function DesignStep({ data, update }: StepProps) {
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.99 }}
                   onClick={() => update('plan', p.id)}
-                  className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-all ${
+                  className={`relative overflow-hidden rounded-xl border p-4 text-left transition-all ${
                     active
                       ? 'border-ink shadow-[0_14px_40px_-16px_rgba(10,10,11,0.4)]'
                       : 'border-black/10 hover:border-black/25'
                   }`}
                 >
-                  <div className="flex items-baseline justify-between gap-4">
-                    <div className="text-lg font-semibold text-ink">{p.title}</div>
-                    <div className="text-base font-medium text-ink/80">{p.price}</div>
-                  </div>
-                  <div className="mt-1 text-sm text-ink/60">{p.blurb}</div>
-                  <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/60">
+                  <div className="text-[15px] font-semibold text-ink">{p.title}</div>
+                  <div className="mt-0.5 text-[13px] font-medium text-ink/75">{p.price}</div>
+                  <div className="mt-2 text-[12.5px] text-ink/60 leading-snug">{p.blurb}</div>
+                  <ul className="mt-2.5 space-y-1 text-[11.5px] text-ink/60">
                     {p.perks.map((x) => (
                       <li key={x} className="flex items-center gap-1.5">
-                        <span className="inline-block h-1 w-1 rounded-full bg-[#22c55e]" /> {x}
+                        <span className="inline-block h-1 w-1 shrink-0 rounded-full bg-[#22c55e]" /> {x}
                       </li>
                     ))}
                   </ul>
                   {active && (
                     <motion.span
                       layoutId="pkg-check"
-                      className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-ink text-white"
+                      className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-ink text-white"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M20 6 9 17l-5-5" />
                       </svg>
                     </motion.span>
@@ -760,9 +765,9 @@ export function DesignStep({ data, update }: StepProps) {
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div>
-      <div className="mb-2 flex items-baseline justify-between gap-3">
-        <label className="text-sm font-medium text-ink">{label}</label>
-        {hint ? <span className="text-xs text-ink/45">{hint}</span> : null}
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+        <label className="text-[13px] font-medium text-ink">{label}</label>
+        {hint ? <span className="text-[11px] text-ink/45">{hint}</span> : null}
       </div>
       {children}
     </div>
@@ -927,24 +932,24 @@ function FileDrop({
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-4 rounded-2xl border border-black/10 bg-white p-5"
+        className="flex items-center gap-3 rounded-xl border border-black/10 bg-white p-3"
       >
         {preview && value.dataUrl ? (
-          <img src={value.dataUrl} alt="" className="h-16 w-16 rounded-xl object-cover" />
+          <img src={value.dataUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />
         ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#22c55e]/15 text-[#16a34a]">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#22c55e]/15 text-[#16a34a]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="truncate text-sm font-medium text-ink">{value.name}</div>
-          <div className="text-xs text-ink/50">{formatSize(value.size)}  uploaded</div>
+          <div className="truncate text-[13px] font-medium text-ink">{value.name}</div>
+          <div className="text-[11px] text-ink/50">{formatSize(value.size)} uploaded</div>
         </div>
         <button
           onClick={() => onChange(undefined)}
-          className="rounded-lg border border-black/10 px-3 py-1.5 text-xs text-ink/70 transition-all hover:border-black/30 hover:text-ink"
+          className="rounded-lg border border-black/10 px-2.5 py-1 text-[11px] text-ink/70 transition-all hover:border-black/30 hover:text-ink"
         >
           Replace
         </button>
@@ -967,19 +972,19 @@ function FileDrop({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
         }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center transition-all ${
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 text-center transition-all ${
           dragOver ? 'border-ink bg-ink/[0.02]' : 'border-black/15 hover:border-black/30'
         }`}
       >
-        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 text-ink/70">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/5 text-ink/70">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 15V3" />
             <path d="m7 8 5-5 5 5" />
             <path d="M5 21h14" />
           </svg>
         </div>
-        <div className="text-base font-medium text-ink">Click to upload or drag &amp; drop</div>
-        {hint ? <div className="mt-1 text-sm text-ink/55">{hint}</div> : null}
+        <div className="text-[13px] font-medium text-ink">Click to upload or drag &amp; drop</div>
+        {hint ? <div className="mt-0.5 text-[11px] text-ink/55">{hint}</div> : null}
         <input
           ref={inputRef}
           type="file"
