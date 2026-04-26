@@ -19,7 +19,7 @@ export default function PrivacyPage() {
         <div className="prose prose-zinc mt-8 text-ink/80 space-y-6">
           <p>
             HirePage respects your privacy. This page outlines what we collect, why, and how it is used.
-            If you have questions, email us at hirepagehq@gmail.com.
+            If you have questions, email us at support@hirepage.app.
           </p>
           <h2 className="text-xl font-semibold mt-6">Information we collect</h2>
           <p>
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
             ongoing support. We do not sell your data.
           </p>
           <h2 className="text-xl font-semibold mt-6">Contact</h2>
-          <p>For questions or removal requests, contact hirepagehq@gmail.com.</p>
+          <p>For questions or removal requests, contact support@hirepage.app.</p>
         </div>
       </main>
       <Footer />

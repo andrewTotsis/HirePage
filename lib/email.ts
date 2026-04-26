@@ -23,7 +23,7 @@ export function isEmailConfigured(): boolean {
 }
 
 export function fromAddress(): string {
-  const fromEmail = process.env.OUTREACH_FROM_EMAIL || 'hello@hirepage.app';
+  const fromEmail = process.env.OUTREACH_FROM_EMAIL || 'support@hirepage.app';
   const fromName = process.env.OUTREACH_FROM_NAME || 'HirePage';
   return `${fromName} <${fromEmail}>`;
 }

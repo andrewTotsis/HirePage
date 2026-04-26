@@ -216,7 +216,7 @@ npm run dev
 ## Known gaps / likely next tasks
 
 - **Examples section** on the marketing site currently shows "Coming Soon" placeholders — replace with real sample HirePages once customer consent is given.
-- **Contact email** `hello@hirepage.com` is a placeholder — swap to real address.
+- **Contact email** is `support@hirepage.app` everywhere user-facing (Footer, /privacy, /terms). Outreach sends from the same address via Gmail API OAuth.
 - **Analytics** not wired up — consider Vercel Analytics or Plausible.
 - **Dark mode** not implemented (intentionally — the site is light-mode by design).
 - **`siteUrl`** in `app/layout.tsx` is `https://hirepage.vercel.app`. Swap to `https://hirepage.app` since the custom domain is live and serving.

@@ -14,10 +14,10 @@ export default function Footer() {
               Professional personal websites for students, graduates, and job seekers.
             </p>
             <a
-              href="mailto:hirepagehq@gmail.com"
+              href="mailto:support@hirepage.app"
               className="mt-3 inline-block text-sm text-ink/70 hover:text-ink"
             >
-              hirepagehq@gmail.com
+              support@hirepage.app
             </a>
           </div>
 
