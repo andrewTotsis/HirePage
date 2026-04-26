@@ -182,6 +182,7 @@ export type SendInput = {
   body: string; // plain text or HTML
   replyTo?: string;
   threadId?: string;
+  unsubscribeUrl?: string; // RFC 8058 one-click; also appended as visible footer
 };
 
 export type SendResult = {
@@ -204,8 +205,14 @@ export async function sendViaGmail(input: SendInput): Promise<SendResult> {
     : input.toEmail;
 
   const inputIsHtml = /<\s*[a-zA-Z][^>]*>/.test(input.body);
-  const html = inputIsHtml ? input.body : plainToHtml(input.body);
-  const text = inputIsHtml ? htmlToPlain(input.body) : input.body;
+  let html = inputIsHtml ? input.body : plainToHtml(input.body);
+  let text = inputIsHtml ? htmlToPlain(input.body) : input.body;
+
+  // Visible unsubscribe footer — required for cold outreach deliverability.
+  if (input.unsubscribeUrl) {
+    html += `<p style="margin:24px 0 0 0;color:#9ca3af;font-size:12px;line-height:1.5;">If this isn't relevant, no problem — <a href="${input.unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">unsubscribe here</a> and I won't reach out again.</p>`;
+    text += `\n\n—\nNot relevant? Unsubscribe: ${input.unsubscribeUrl}`;
+  }
 
   const boundary = `=_hp_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
   const headers = [
@@ -213,6 +220,8 @@ export async function sendViaGmail(input: SendInput): Promise<SendResult> {
     `To: ${toHeader}`,
     `Subject: ${encodeSubject(input.subject)}`,
     input.replyTo ? `Reply-To: ${input.replyTo}` : null,
+    input.unsubscribeUrl ? `List-Unsubscribe: <${input.unsubscribeUrl}>` : null,
+    input.unsubscribeUrl ? `List-Unsubscribe-Post: List-Unsubscribe=One-Click` : null,
     `MIME-Version: 1.0`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
   ].filter((l): l is string => l !== null);

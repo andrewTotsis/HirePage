@@ -29,6 +29,8 @@ export async function POST(req: Request) {
   if (!settings) return NextResponse.json({ error: 'Gmail not connected' }, { status: 412 });
 
   const fromEmail = settings.email;
+  const reqUrl = new URL(req.url);
+  const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
   const results: Array<{ contact_id: string; ok: boolean; error?: string; message_id?: string }> = [];
   let sent = 0, skipped = 0, errors = 0;
 
@@ -43,6 +45,9 @@ export async function POST(req: Request) {
     const bodyText = personalize(bodyTpl, contact);
 
     try {
+      const unsubscribeUrl = contact.unsub_token
+        ? `${baseUrl}/api/unsubscribe?t=${encodeURIComponent(contact.unsub_token)}`
+        : undefined;
       const r = await sendViaGmail({
         toEmail: contact.email,
         toName: fullName(contact) || undefined,
@@ -51,6 +56,7 @@ export async function POST(req: Request) {
         subject,
         body: bodyText,
         replyTo,
+        unsubscribeUrl,
       });
       if (r.ok) {
         sent++;
