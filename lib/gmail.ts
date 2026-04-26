@@ -152,6 +152,21 @@ function plainToHtml(text: string): string {
     .join('');
 }
 
+function htmlToPlain(html: string): string {
+  return html
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/\s*p\s*>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function encodeSubject(subject: string): string {
   // Gmail accepts UTF-8 subjects via RFC 2047 encoded-word
   if (/^[\x20-\x7E]*$/.test(subject)) return subject;
@@ -188,20 +203,38 @@ export async function sendViaGmail(input: SendInput): Promise<SendResult> {
     ? `${encodeSubject(input.toName)} <${input.toEmail}>`
     : input.toEmail;
 
-  const html = plainToHtml(input.body);
+  const inputIsHtml = /<\s*[a-zA-Z][^>]*>/.test(input.body);
+  const html = inputIsHtml ? input.body : plainToHtml(input.body);
+  const text = inputIsHtml ? htmlToPlain(input.body) : input.body;
 
-  const lines = [
+  const boundary = `=_hp_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+  const headers = [
     `From: ${fromHeader}`,
     `To: ${toHeader}`,
     `Subject: ${encodeSubject(input.subject)}`,
-    input.replyTo ? `Reply-To: ${input.replyTo}` : '',
+    input.replyTo ? `Reply-To: ${input.replyTo}` : null,
     `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+  ].filter((l): l is string => l !== null);
+
+  const mimeBody = [
+    `--${boundary}`,
+    `Content-Type: text/plain; charset=UTF-8`,
+    `Content-Transfer-Encoding: 8bit`,
+    ``,
+    text,
+    ``,
+    `--${boundary}`,
     `Content-Type: text/html; charset=UTF-8`,
     `Content-Transfer-Encoding: 8bit`,
     ``,
     html,
-  ].filter(Boolean);
-  const raw = base64UrlEncode(lines.join('\r\n'));
+    ``,
+    `--${boundary}--`,
+    ``,
+  ].join('\r\n');
+
+  const raw = base64UrlEncode(headers.join('\r\n') + '\r\n\r\n' + mimeBody);
 
   const body: Record<string, string> = { raw };
   if (input.threadId) body.threadId = input.threadId;
