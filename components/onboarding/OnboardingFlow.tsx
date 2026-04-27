@@ -33,7 +33,7 @@ function canAdvanceFrom(step: StepId, data: OnboardingData): boolean {
     case 'basics':
       return data.fullName.trim().length >= 2 && isEmail(data.email);
     case 'profile':
-      return data.roles.length > 0 && !!data.resume;
+      return data.roles.length > 0 && !!data.resume && data.showcase !== null;
     case 'design':
       return !!data.plan;
     default:

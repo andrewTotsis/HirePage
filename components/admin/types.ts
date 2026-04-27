@@ -33,6 +33,7 @@ export type AdminLead = {
   delivered: boolean;
   delivered_at: number | null;
   status_override: FunnelStatus | null;
+  showcase: boolean | null;
   created_at: number;
   updated_at: number;
 };

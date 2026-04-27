@@ -272,6 +272,12 @@ export default function LeadDetailView({ initialLead }: Props) {
               <FieldRow label="GitHub">
                 <Input value={github} onChange={setGithub} placeholder="github.com/…" />
               </FieldRow>
+              <FieldRow label="Showcase opt-in">
+                <ShowcaseEdit
+                  value={lead.showcase}
+                  onChange={(v) => patch({ showcase: v })}
+                />
+              </FieldRow>
               <div className="flex items-center justify-end gap-2 pt-1">
                 <span className="text-xs text-white/40">
                   {savedAt ? `Saved ${relativeTime(savedAt)}` : saving ? 'Saving…' : ' '}
@@ -471,6 +477,38 @@ export default function LeadDetailView({ initialLead }: Props) {
 }
 
 /* -------------- Helpers -------------- */
+
+function ShowcaseEdit({
+  value,
+  onChange,
+}: {
+  value: boolean | null;
+  onChange: (v: boolean | null) => void;
+}) {
+  const opt = (val: boolean | null, label: string, isOn: boolean, color?: string) => (
+    <button
+      onClick={() => onChange(val)}
+      className={`rounded-lg px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset transition-all ${
+        isOn
+          ? color === 'green'
+            ? 'bg-[#22c55e]/15 text-[#4ade80] ring-[#22c55e]/25'
+            : color === 'red'
+            ? 'bg-[#ef4444]/15 text-[#f87171] ring-[#ef4444]/25'
+            : 'bg-white/15 text-white ring-white/20'
+          : 'bg-white/5 text-white/55 ring-white/10 hover:bg-white/10'
+      }`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex items-center gap-1.5">
+      {opt(true, 'Yes — feature', value === true, 'green')}
+      {opt(false, 'No', value === false, 'red')}
+      {opt(null, 'Not asked', value === null)}
+    </div>
+  );
+}
 
 function StatusPill({ status }: { status: FunnelStatus }) {
   const s = STATUS_STYLES[status];

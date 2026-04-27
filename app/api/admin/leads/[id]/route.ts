@@ -53,6 +53,9 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   if (Array.isArray(body.role)) patch.role = (body.role as unknown[]).map(String).slice(0, 30);
   if (Array.isArray(body.colors)) patch.colors = (body.colors as unknown[]).map(String).slice(0, 30);
 
+  if (body.showcase === null) patch.showcase = null;
+  else if (typeof body.showcase === 'boolean') patch.showcase = body.showcase;
+
   if (body.package === null) patch.package = undefined;
   else if (typeof body.package === 'string' && PACKAGE_VALUES.has(body.package)) {
     patch.package = body.package as 'basic' | 'monthly' | 'unlimited';

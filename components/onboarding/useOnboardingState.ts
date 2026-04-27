@@ -87,6 +87,7 @@ export function reportProgress(
     phone: data.phoneNumber,
     phone_country: data.phoneCountry,
     role: data.roles,
+    showcase: data.showcase,
     linkedin: data.linkedin,
     github: data.github,
     resume_name: data.resume?.name,
