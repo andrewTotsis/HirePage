@@ -164,6 +164,25 @@ export const storage = {
     const rows = (await sql`SELECT * FROM leads ORDER BY updated_at DESC LIMIT 1000`) as Record<string, unknown>[];
     return rows.map(rowToRecord);
   },
+  async findLeadByEmail(email: string): Promise<LeadRecord | null> {
+    const e = email.trim().toLowerCase();
+    if (!e) return null;
+    const sql = getSql();
+    if (!sql) {
+      for (const r of mem.values()) {
+        if (String(r.email ?? '').toLowerCase() === e) return r;
+      }
+      return null;
+    }
+    await ensureSchema(sql);
+    const rows = (await sql`
+      SELECT * FROM leads
+      WHERE LOWER(email) = ${e}
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `) as Record<string, unknown>[];
+    return rows[0] ? rowToRecord(rows[0]) : null;
+  },
   async patchLead(id: string, patch: Partial<LeadRecord>): Promise<LeadRecord | null> {
     const existing = await this.getLead(id);
     if (!existing) return null;

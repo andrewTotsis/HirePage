@@ -246,3 +246,65 @@ export async function listLeads(): Promise<Lead[]> {
 export async function deleteLead(id: string): Promise<boolean> {
   return storage.deleteLead(id);
 }
+
+/**
+ * Idempotent: mark a lead as paid by email. Used by the Stripe webhook.
+ *
+ * Behaviour:
+ * - If a lead exists with this email and isn't already paid, flip paid=true and
+ *   stamp paid_at. If `pkg` is supplied and the lead has no package yet,
+ *   backfill it.
+ * - If no lead exists, create a stub lead so the payment still surfaces in the
+ *   CRM (we don't want to lose the signal just because they paid before
+ *   completing intake — e.g. someone got the link forwarded to them).
+ * - Always safe to call repeatedly with the same input.
+ */
+export async function markPaidByEmail(
+  email: string,
+  pkg?: Lead['package'],
+  meta?: { source?: string },
+): Promise<{ lead: Lead; created: boolean; alreadyPaid: boolean }> {
+  const e = email.trim().toLowerCase();
+  if (!e) throw new Error('email required');
+  const existing = (await storage.findLeadByEmail(e)) as unknown as Lead | null;
+  const now = Date.now();
+
+  if (existing) {
+    if (existing.paid) {
+      return { lead: existing, created: false, alreadyPaid: true };
+    }
+    const patch: AdminPatch = { paid: true };
+    if (!existing.package && pkg) patch.package = pkg;
+    if (existing.progress < 100) patch.progress = 100;
+    if (existing.last_step !== 'submitted') patch.last_step = 'submitted';
+    const updated = await patchAdminLead(existing.id, patch);
+    return { lead: updated!, created: false, alreadyPaid: false };
+  }
+
+  // No matching lead — create a stub so the payment shows up in the CRM.
+  const id = `stripe_${Math.random().toString(36).slice(2, 10)}${now.toString(36)}`;
+  const stub: Lead = {
+    id,
+    name: '',
+    email: e,
+    phone: '',
+    role: [],
+    linkedin: '',
+    github: '',
+    colors: [],
+    package: pkg,
+    progress: 100,
+    last_step: 'submitted',
+    notes: meta?.source ? `Auto-created by ${meta.source}` : 'Auto-created from Stripe payment',
+    contacted: false,
+    paid: true,
+    paid_at: now,
+    delivered: false,
+    delivered_at: null,
+    status_override: null,
+    created_at: now,
+    updated_at: now,
+  };
+  await storage.putLead(stub as unknown as LeadRecord);
+  return { lead: stub, created: true, alreadyPaid: false };
+}
