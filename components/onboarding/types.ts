@@ -20,6 +20,7 @@ export type OnboardingData = {
   phoneCountry: string;
   phoneNumber: string;
   roles: string[];
+  showcase: boolean | null; // required Yes/No — null = unanswered
   linkedin: string;
   github: string;
   resume?: UploadedFile;
@@ -36,6 +37,7 @@ export const initialData: OnboardingData = {
   phoneCountry: '+1',
   phoneNumber: '',
   roles: [],
+  showcase: null,
   linkedin: '',
   github: '',
   colors: [],

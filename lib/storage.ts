@@ -50,6 +50,7 @@ async function ensureSchema(sql: NeonQueryFunction<false, false>): Promise<void>
           delivered       boolean NOT NULL DEFAULT false,
           delivered_at    bigint,
           status_override text,
+          showcase        boolean,
           created_at      bigint NOT NULL,
           updated_at      bigint NOT NULL
         )
@@ -60,6 +61,7 @@ async function ensureSchema(sql: NeonQueryFunction<false, false>): Promise<void>
       await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS delivered boolean NOT NULL DEFAULT false`;
       await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS delivered_at bigint`;
       await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS status_override text`;
+      await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS showcase boolean`;
       await sql`CREATE INDEX IF NOT EXISTS leads_updated_at_idx ON leads (updated_at DESC)`;
       bootstrapped = true;
     })();
@@ -81,6 +83,7 @@ function rowToRecord(r: Record<string, unknown>): LeadRecord {
     delivered: Boolean(r.delivered),
     delivered_at: r.delivered_at == null ? null : Number(r.delivered_at),
     status_override: (r.status_override as string | null) || null,
+    showcase: r.showcase == null ? null : Boolean(r.showcase),
   };
   return parsed as unknown as LeadRecord;
 }
@@ -106,7 +109,7 @@ export const storage = {
         resume_name, resume_size, resume_url, headshot_name, headshot_url,
         style, colors, custom_requests, package, progress, last_step,
         notes, contacted, paid, paid_at, delivered, delivered_at, status_override,
-        created_at, updated_at
+        showcase, created_at, updated_at
       ) VALUES (
         ${l.id}, ${l.name ?? ''}, ${l.email ?? ''}, ${l.phone ?? ''}, ${l.phone_country ?? null},
         ${JSON.stringify(l.role ?? [])}::jsonb, ${l.linkedin ?? ''}, ${l.github ?? ''},
@@ -119,6 +122,7 @@ export const storage = {
         ${l.paid ?? false}, ${l.paid_at ?? null},
         ${l.delivered ?? false}, ${l.delivered_at ?? null},
         ${l.status_override ?? null},
+        ${l.showcase ?? null},
         ${l.created_at ?? Date.now()}, ${l.updated_at ?? Date.now()}
       )
       ON CONFLICT (id) DO UPDATE SET
@@ -147,6 +151,7 @@ export const storage = {
         delivered = EXCLUDED.delivered,
         delivered_at = EXCLUDED.delivered_at,
         status_override = EXCLUDED.status_override,
+        showcase = EXCLUDED.showcase,
         updated_at = EXCLUDED.updated_at
     `;
   },

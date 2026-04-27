@@ -6,10 +6,11 @@ import Logo from './Logo';
 import CTAButton from './CTAButton';
 
 const links = [
-  { href: '#how', label: 'How It Works' },
-  { href: '#examples', label: 'Examples' },
-  { href: '#pricing', label: 'Pricing' },
-  { href: '#faq', label: 'FAQ' },
+  { href: '/#how', label: 'How It Works' },
+  { href: '/#examples', label: 'Examples' },
+  { href: '/showcase', label: 'Talent Showcase' },
+  { href: '/#pricing', label: 'Pricing' },
+  { href: '/#faq', label: 'FAQ' },
 ];
 
 export default function Navbar() {

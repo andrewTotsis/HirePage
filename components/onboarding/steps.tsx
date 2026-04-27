@@ -624,6 +624,28 @@ export function ProfileStep({ data, update }: StepProps) {
           </div>
         </Field>
 
+        <Field
+          label="Feature in our recruiter showcase?"
+          hint="Free. Increases visibility to hiring managers in your roles."
+        >
+          <div className="flex gap-2">
+            <ShowcasePill
+              active={data.showcase === true}
+              onClick={() => update('showcase', true)}
+              tone="yes"
+            >
+              Yes — feature my page
+            </ShowcasePill>
+            <ShowcasePill
+              active={data.showcase === false}
+              onClick={() => update('showcase', false)}
+              tone="no"
+            >
+              No thanks
+            </ShowcasePill>
+          </div>
+        </Field>
+
         <Field label="LinkedIn" hint="Optional">
           <input
             type="url"
@@ -754,6 +776,37 @@ export function DesignStep({ data, update }: StepProps) {
         </Field>
       </div>
     </StepShell>
+  );
+}
+
+function ShowcasePill({
+  active,
+  onClick,
+  tone,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  tone: 'yes' | 'no';
+  children: ReactNode;
+}) {
+  const activeCls =
+    tone === 'yes'
+      ? 'border-ink bg-ink text-white'
+      : 'border-ink bg-white text-ink';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex-1 rounded-xl border px-4 py-3 text-[14px] font-medium transition-all ${
+        active
+          ? activeCls + ' shadow-[0_10px_30px_-12px_rgba(10,10,11,0.35)]'
+          : 'border-black/10 bg-white text-ink/75 hover:border-black/25 hover:text-ink'
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

@@ -35,6 +35,7 @@ export type Lead = {
   delivered: boolean;
   delivered_at: number | null;
   status_override: FunnelStatus | null;
+  showcase: boolean | null;
   created_at: number;
   updated_at: number;
 };
@@ -119,6 +120,7 @@ function sanitizeUpsert(input: Partial<Lead>): Partial<Lead> {
     'custom_requests',
     'package',
     'last_step',
+    'showcase',
   ];
   for (const k of allow) {
     if (input[k] !== undefined) (clean as any)[k] = input[k];
@@ -147,6 +149,7 @@ export async function upsertLead(id: string, patch: Partial<Lead>): Promise<Lead
     delivered: false,
     delivered_at: null,
     status_override: null,
+    showcase: null,
     created_at: now,
     updated_at: now,
   };
@@ -202,6 +205,7 @@ export type AdminPatch = Partial<
     | 'custom_requests'
     | 'style'
     | 'colors'
+    | 'showcase'
   >
 >;
 
@@ -302,6 +306,7 @@ export async function markPaidByEmail(
     delivered: false,
     delivered_at: null,
     status_override: null,
+    showcase: null,
     created_at: now,
     updated_at: now,
   };
