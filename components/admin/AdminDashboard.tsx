@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminLead, Segment, SortBy, statusOf } from './types';
 import TopBar from './TopBar';
 import AnalyticsHeader from './AnalyticsHeader';
@@ -52,6 +52,26 @@ export default function AdminDashboard({ hasBackend }: Props) {
     return new Set(leads.filter((l) => l.created_at > lastSeen - 30_000).map((l) => l.id));
   }, [leads, lastSeen]);
 
+  const patchLead = useCallback(async (id: string, patch: Partial<AdminLead>) => {
+    // Optimistic update
+    setLeads((prev) =>
+      prev.map((l) => (l.id === id ? ({ ...l, ...patch, updated_at: Date.now() } as AdminLead) : l)),
+    );
+    try {
+      const r = await fetch(`/api/admin/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!r.ok) throw new Error('patch failed');
+      const j = (await r.json()) as { lead: AdminLead };
+      setLeads((prev) => prev.map((l) => (l.id === id ? j.lead : l)));
+    } catch {
+      // Revert on failure
+      fetchLeads(true);
+    }
+  }, []);
+
   const filtered = useMemo(() => {
     let list = [...leads];
     const q = query.trim().toLowerCase();
@@ -65,10 +85,7 @@ export default function AdminDashboard({ hasBackend }: Props) {
     }
     if (packageFilter !== 'all') list = list.filter((l) => l.package === packageFilter);
     const now = Date.now();
-    if (segment === 'hot') list = list.filter((l) => l.progress >= 60 && statusOf(l, now) !== 'complete');
-    if (segment === 'dropoff') list = list.filter((l) => statusOf(l, now) === 'abandoned');
-    if (segment === 'complete') list = list.filter((l) => statusOf(l, now) === 'complete');
-    if (segment === 'contacted') list = list.filter((l) => l.contacted);
+    if (segment !== 'all') list = list.filter((l) => statusOf(l, now) === segment);
     if (sortBy === 'recent') list.sort((a, b) => b.updated_at - a.updated_at);
     if (sortBy === 'created') list.sort((a, b) => b.created_at - a.created_at);
     if (sortBy === 'intent') list.sort((a, b) => b.progress - a.progress || b.updated_at - a.updated_at);
@@ -118,7 +135,7 @@ export default function AdminDashboard({ hasBackend }: Props) {
           ) : filtered.length === 0 ? (
             <EmptyState segment={segment} />
           ) : (
-            <LeadTable leads={filtered} newIds={newLeadIds} />
+            <LeadTable leads={filtered} newIds={newLeadIds} onPatch={patchLead} />
           )}
         </div>
       </main>
@@ -129,10 +146,12 @@ export default function AdminDashboard({ hasBackend }: Props) {
 function EmptyState({ segment }: { segment: Segment }) {
   const copy: Record<Segment, { title: string; subtitle: string }> = {
     all: { title: 'No leads yet', subtitle: 'New onboarding submissions will appear here in real time.' },
-    hot: { title: 'No hot leads', subtitle: 'Hot leads reached 60%+ but didn\u2019t finish. Check back soon.' },
-    dropoff: { title: 'No drop-offs', subtitle: 'Nobody has gone quiet for more than 24 hours. Nice.' },
-    complete: { title: 'No completions yet', subtitle: 'Completed onboarding flows will surface here.' },
-    contacted: { title: 'No contacted leads', subtitle: 'Mark leads as contacted from the detail panel.' },
+    lead: { title: 'No new leads', subtitle: 'Brand-new visitors who landed on onboarding but haven\u2019t answered yet.' },
+    in_progress: { title: 'No leads in progress', subtitle: 'People mid-funnel will land here while they fill out the intake.' },
+    complete: { title: 'No intake-complete leads', subtitle: 'Submitters who finished the form but haven\u2019t paid yet.' },
+    paid: { title: 'No paid orders', subtitle: 'Stripe purchases will surface here once you mark them paid (or wire a webhook).' },
+    delivered: { title: 'Nothing delivered yet', subtitle: 'Mark a lead as delivered when their HirePage ships.' },
+    abandoned: { title: 'No drop-offs', subtitle: 'Nobody has gone quiet for more than 24 hours. Nice.' },
   };
   const c = copy[segment];
   return (

@@ -4,22 +4,45 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { AdminLead, packageLabel, relativeTime, statusOf } from './types';
+import {
+  AdminLead,
+  FunnelStatus,
+  STATUS_LABELS,
+  STATUS_ORDER,
+  STATUS_STYLES,
+  packageLabel,
+  relativeTime,
+  statusOf,
+} from './types';
 
 type Props = { initialLead: AdminLead };
+
+const PACKAGE_OPTIONS: { id: 'basic' | 'monthly' | 'unlimited' | ''; label: string }[] = [
+  { id: '', label: '— No plan picked —' },
+  { id: 'basic', label: 'Basic · $50' },
+  { id: 'monthly', label: 'Monthly Edits · $50 + $5/mo' },
+  { id: 'unlimited', label: 'Unlimited Edits · $50 + $10/mo' },
+];
 
 export default function LeadDetailView({ initialLead }: Props) {
   const router = useRouter();
   const [lead, setLead] = useState<AdminLead>(initialLead);
-  const [notes, setNotes] = useState(initialLead.notes);
+  const [notesDraft, setNotesDraft] = useState(initialLead.notes);
+  const [name, setName] = useState(initialLead.name);
+  const [email, setEmail] = useState(initialLead.email);
+  const [phone, setPhone] = useState(initialLead.phone);
+  const [linkedin, setLinkedin] = useState(initialLead.linkedin);
+  const [github, setGithub] = useState(initialLead.github);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const status = statusOf(lead);
 
-  const patch = async (body: { notes?: string; contacted?: boolean }) => {
+  const patch = async (body: Partial<AdminLead>) => {
     setSaving(true);
+    // optimistic
+    setLead((prev) => ({ ...prev, ...body, updated_at: Date.now() } as AdminLead));
     try {
       const r = await fetch(`/api/admin/leads/${lead.id}`, {
         method: 'PATCH',
@@ -36,7 +59,16 @@ export default function LeadDetailView({ initialLead }: Props) {
     }
   };
 
-  const saveNotes = () => patch({ notes });
+  const saveIdentity = () =>
+    patch({
+      name,
+      email,
+      phone,
+      linkedin,
+      github,
+    });
+
+  const saveNotes = () => patch({ notes: notesDraft });
   const toggleContacted = () => patch({ contacted: !lead.contacted });
 
   const exportData = () => {
@@ -78,6 +110,13 @@ export default function LeadDetailView({ initialLead }: Props) {
       .map((p) => p[0])
       .join('')
       .toUpperCase() || '??';
+
+  const identityDirty =
+    name !== lead.name ||
+    email !== lead.email ||
+    phone !== lead.phone ||
+    linkedin !== lead.linkedin ||
+    github !== lead.github;
 
   return (
     <div className="min-h-screen">
@@ -148,6 +187,18 @@ export default function LeadDetailView({ initialLead }: Props) {
                   <span>Updated {relativeTime(lead.updated_at)}</span>
                   <span>·</span>
                   <span>{packageLabel(lead.package)}</span>
+                  {lead.paid && lead.paid_at ? (
+                    <>
+                      <span>·</span>
+                      <span className="text-[#86efac]">Paid {new Date(lead.paid_at).toLocaleDateString()}</span>
+                    </>
+                  ) : null}
+                  {lead.delivered && lead.delivered_at ? (
+                    <>
+                      <span>·</span>
+                      <span className="text-[#7dd3fc]">Delivered {new Date(lead.delivered_at).toLocaleDateString()}</span>
+                    </>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -178,7 +229,7 @@ export default function LeadDetailView({ initialLead }: Props) {
           <div className="relative mt-8">
             <div className="mb-2 flex items-end justify-between">
               <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/40">
-                Onboarding progress
+                Onboarding intake
               </div>
               <div className="text-xs tabular-nums text-white/55">
                 {lead.progress}% · last step <span className="text-white/75">{lead.last_step}</span>
@@ -206,11 +257,86 @@ export default function LeadDetailView({ initialLead }: Props) {
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             <Section title="Personal info">
-              <KV label="Name">{lead.name || <Dim />}</KV>
-              <KV label="Email">{lead.email ? <a href={`mailto:${lead.email}`} className="text-[#a5b4fc] hover:underline">{lead.email}</a> : <Dim />}</KV>
-              <KV label="Phone">{lead.phone ? `${lead.phone_country || ''} ${lead.phone}` : <Dim />}</KV>
-              <KV label="LinkedIn">{renderLink(lead.linkedin)}</KV>
-              <KV label="GitHub">{renderLink(lead.github)}</KV>
+              <FieldRow label="Name">
+                <Input value={name} onChange={setName} placeholder="Full name" />
+              </FieldRow>
+              <FieldRow label="Email">
+                <Input value={email} onChange={setEmail} type="email" placeholder="email@example.com" />
+              </FieldRow>
+              <FieldRow label="Phone">
+                <Input value={phone} onChange={setPhone} placeholder="+1 555…" />
+              </FieldRow>
+              <FieldRow label="LinkedIn">
+                <Input value={linkedin} onChange={setLinkedin} placeholder="linkedin.com/in/…" />
+              </FieldRow>
+              <FieldRow label="GitHub">
+                <Input value={github} onChange={setGithub} placeholder="github.com/…" />
+              </FieldRow>
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <span className="text-xs text-white/40">
+                  {savedAt ? `Saved ${relativeTime(savedAt)}` : saving ? 'Saving…' : ' '}
+                </span>
+                <button
+                  onClick={saveIdentity}
+                  disabled={!identityDirty || saving}
+                  className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-black transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Save
+                </button>
+              </div>
+            </Section>
+
+            <Section title="Sales pipeline">
+              <FieldRow label="Status">
+                <StatusSelect value={status} onChange={(v) => patch({ status_override: v })} />
+                {lead.status_override && (
+                  <button
+                    onClick={() => patch({ status_override: null })}
+                    className="ml-2 text-[11px] text-white/45 underline-offset-2 hover:text-white/75 hover:underline"
+                  >
+                    clear override
+                  </button>
+                )}
+              </FieldRow>
+              <FieldRow label="Package">
+                <select
+                  value={lead.package ?? ''}
+                  onChange={(e) =>
+                    patch({
+                      package: (e.target.value || undefined) as 'basic' | 'monthly' | 'unlimited' | undefined,
+                    })
+                  }
+                  className="w-full appearance-none rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/90 outline-none transition-all focus:border-white/25"
+                >
+                  {PACKAGE_OPTIONS.map((p) => (
+                    <option key={p.id} value={p.id} className="bg-[#0f0f12]">
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </FieldRow>
+              <FieldRow label="Paid">
+                <YesNoToggle
+                  value={lead.paid}
+                  onChange={(v) => patch({ paid: v })}
+                  color="emerald"
+                  withLabel
+                />
+              </FieldRow>
+              <FieldRow label="Delivered">
+                <YesNoToggle
+                  value={lead.delivered}
+                  onChange={(v) => patch({ delivered: v })}
+                  color="sky"
+                  withLabel
+                />
+              </FieldRow>
+              <FieldRow label="Intake %">
+                <IntakeNumberInput
+                  value={lead.progress}
+                  onChange={(v) => patch({ progress: v })}
+                />
+              </FieldRow>
             </Section>
 
             <Section title="Responses">
@@ -258,10 +384,10 @@ export default function LeadDetailView({ initialLead }: Props) {
           <div className="space-y-6">
             <Section title="Internal notes">
               <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
                 rows={8}
-                placeholder="Notes about this lead&hellip;"
+                placeholder="Notes about this lead…"
                 className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/90 outline-none transition-all placeholder:text-white/30 focus:border-white/25"
               />
               <div className="mt-2 flex items-center justify-between">
@@ -270,7 +396,7 @@ export default function LeadDetailView({ initialLead }: Props) {
                 </div>
                 <button
                   onClick={saveNotes}
-                  disabled={saving || notes === lead.notes}
+                  disabled={saving || notesDraft === lead.notes}
                   className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-black transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Save note
@@ -283,6 +409,8 @@ export default function LeadDetailView({ initialLead }: Props) {
               <TimelineRow label="Last updated" value={`${new Date(lead.updated_at).toLocaleString()} · ${relativeTime(lead.updated_at)}`} />
               <TimelineRow label="Last step" value={lead.last_step} />
               <TimelineRow label="Package" value={packageLabel(lead.package)} />
+              {lead.paid_at ? <TimelineRow label="Paid" value={new Date(lead.paid_at).toLocaleString()} /> : null}
+              {lead.delivered_at ? <TimelineRow label="Delivered" value={new Date(lead.delivered_at).toLocaleString()} /> : null}
             </Section>
           </div>
         </div>
@@ -342,21 +470,119 @@ export default function LeadDetailView({ initialLead }: Props) {
   );
 }
 
-function StatusPill({ status }: { status: 'complete' | 'in_progress' | 'abandoned' }) {
-  const cls =
-    status === 'complete'
-      ? 'bg-[#22c55e]/15 text-[#4ade80] ring-[#22c55e]/25'
-      : status === 'abandoned'
-      ? 'bg-[#ef4444]/15 text-[#f87171] ring-[#ef4444]/25'
-      : 'bg-[#f59e0b]/15 text-[#fbbf24] ring-[#f59e0b]/25';
-  const dot =
-    status === 'complete' ? 'bg-[#22c55e]' : status === 'abandoned' ? 'bg-[#ef4444]' : 'bg-[#f59e0b]';
-  const label = status === 'complete' ? 'Complete' : status === 'abandoned' ? 'Abandoned' : 'In Progress';
+/* -------------- Helpers -------------- */
+
+function StatusPill({ status }: { status: FunnelStatus }) {
+  const s = STATUS_STYLES[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${cls}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-      {label}
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${s.ring} ${s.bg} ${s.text}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+      {STATUS_LABELS[status]}
     </span>
+  );
+}
+
+function StatusSelect({
+  value,
+  onChange,
+}: {
+  value: FunnelStatus;
+  onChange: (v: FunnelStatus) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as FunnelStatus)}
+      className="appearance-none rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/90 outline-none transition-all focus:border-white/25"
+    >
+      {STATUS_ORDER.map((s) => (
+        <option key={s} value={s} className="bg-[#0f0f12]">
+          {STATUS_LABELS[s]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function YesNoToggle({
+  value,
+  onChange,
+  color,
+  withLabel,
+}: {
+  value: boolean;
+  onChange: (v: boolean) => void;
+  color: 'emerald' | 'sky';
+  withLabel?: boolean;
+}) {
+  const yesCls =
+    color === 'emerald'
+      ? 'bg-[#22c55e]/15 text-[#4ade80] ring-[#22c55e]/25'
+      : 'bg-[#0ea5e9]/15 text-[#7dd3fc] ring-[#0ea5e9]/25';
+  const yesDot = color === 'emerald' ? 'bg-[#22c55e]' : 'bg-[#0ea5e9]';
+  return (
+    <button
+      onClick={() => onChange(!value)}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset transition-all ${
+        value ? yesCls : 'bg-white/5 text-white/55 ring-white/10 hover:bg-white/10'
+      }`}
+      aria-pressed={value}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${value ? yesDot : 'bg-white/30'}`} />
+      {value ? 'Yes' : 'No'}
+      {withLabel && <span className="text-white/35">· tap to toggle</span>}
+    </button>
+  );
+}
+
+function IntakeNumberInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="number"
+        min={0}
+        max={100}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          const n = Math.max(0, Math.min(100, parseInt(draft, 10) || 0));
+          if (n !== value) onChange(n);
+        }}
+        className="w-20 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+      />
+      <span className="text-xs text-white/45">%</span>
+    </div>
+  );
+}
+
+function Input({
+  value,
+  onChange,
+  type = 'text',
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/90 outline-none transition-all placeholder:text-white/30 focus:border-white/25"
+    />
   );
 }
 
@@ -368,6 +594,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       </div>
       <div className="space-y-4 rounded-2xl border border-white/5 bg-white/[0.02] p-5">{children}</div>
     </section>
+  );
+}
+
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[120px_1fr] items-center gap-4 text-sm">
+      <div className="text-xs text-white/45">{label}</div>
+      <div className="flex min-w-0 items-center">{children}</div>
+    </div>
   );
 }
 
@@ -391,16 +626,6 @@ function TimelineRow({ label, value }: { label: string; value: string }) {
 
 function Dim() {
   return <span className="text-white/30">—</span>;
-}
-
-function renderLink(url: string) {
-  if (!url) return <Dim />;
-  const href = url.startsWith('http') ? url : `https://${url}`;
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="truncate text-[#a5b4fc] hover:underline">
-      {url}
-    </a>
-  );
 }
 
 function FileCard({ label, name, size, url }: { label: string; name?: string; size?: number; url?: string }) {
