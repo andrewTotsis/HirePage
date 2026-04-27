@@ -68,13 +68,15 @@ export default function AnalyticsHeader({ leads }: Props) {
   const stats = useMemo(() => {
     const now = Date.now();
     const total = leads.length;
-    const complete = leads.filter((l) => statusOf(l, now) === 'complete').length;
+    // "Complete" for analytics = intake done OR further down funnel (paid/delivered).
+    const intakeDone = leads.filter((l) => {
+      const s = statusOf(l, now);
+      return s === 'complete' || s === 'paid' || s === 'delivered';
+    });
     const abandoned = leads.filter((l) => statusOf(l, now) === 'abandoned').length;
-    const rate = total > 0 ? Math.round((complete / total) * 100) : 0;
+    const rate = total > 0 ? Math.round((intakeDone.length / total) * 100) : 0;
     const dropoff = total > 0 ? Math.round((abandoned / total) * 100) : 0;
-    const revenue = leads
-      .filter((l) => statusOf(l, now) === 'complete')
-      .reduce((sum, l) => sum + packageRevenue(l.package), 0);
+    const revenue = intakeDone.reduce((sum, l) => sum + packageRevenue(l.package), 0);
     return [
       { label: 'Total signups', value: total.toLocaleString(), accent: 'from-white/30 to-white/5' },
       { label: 'Completion rate', value: `${rate}%`, accent: 'from-[#22c55e]/50 to-transparent' },

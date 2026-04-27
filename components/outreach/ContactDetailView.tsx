@@ -13,6 +13,17 @@ export default function ContactDetailView({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
+  const [editingIdentity, setEditingIdentity] = useState(false);
+  const [identityDraft, setIdentityDraft] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    company: '',
+    title: '',
+    linkedin: '',
+    tags: '' as string,
+  });
+  const [identitySaving, setIdentitySaving] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiContext, setAiContext] = useState('');
   const [aiError, setAiError] = useState<string | null>(null);
@@ -30,8 +41,46 @@ export default function ContactDetailView({ id }: { id: string }) {
       setData({ contact: j1.contact, events: j1.events ?? [] });
       setStats({ gmail_connected: !!j2.gmail_connected, gmail_email: j2.gmail_email ?? null });
       setNotesDraft(j1.contact?.notes ?? '');
+      const c = j1.contact;
+      if (c) {
+        setIdentityDraft({
+          first_name: c.first_name ?? '',
+          last_name: c.last_name ?? '',
+          email: c.email ?? '',
+          company: c.company ?? '',
+          title: c.title ?? '',
+          linkedin: c.linkedin ?? '',
+          tags: Array.isArray(c.tags) ? c.tags.join(', ') : '',
+        });
+      }
     } catch {}
     setLoading(false);
+  };
+
+  const saveIdentity = async () => {
+    setIdentitySaving(true);
+    try {
+      await fetch(`/api/admin/outreach/contacts/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          first_name: identityDraft.first_name.trim(),
+          last_name: identityDraft.last_name.trim(),
+          email: identityDraft.email.trim(),
+          company: identityDraft.company.trim(),
+          title: identityDraft.title.trim(),
+          linkedin: identityDraft.linkedin.trim(),
+          tags: identityDraft.tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+        }),
+      });
+      setEditingIdentity(false);
+      await load();
+    } finally {
+      setIdentitySaving(false);
+    }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
 
@@ -84,24 +133,54 @@ export default function ContactDetailView({ id }: { id: string }) {
   return (
     <main className="mx-auto max-w-[1200px] px-6 pb-24 pt-6">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <Link href="/admin/outreach/contacts" className="text-xs text-white/45 hover:text-white/70">← Contacts</Link>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">{fullName(contact) || contact.email || 'Unnamed contact'}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white/60">
-            {contact.email && <span>{contact.email}</span>}
-            {contact.title && <span className="text-white/40">·</span>}
-            {contact.title && <span>{contact.title}</span>}
-            {contact.company && <span className="text-white/40">·</span>}
-            {contact.company && <span>{contact.company}</span>}
-            {contact.linkedin && <a href={contact.linkedin} target="_blank" rel="noreferrer" className="text-[#7dd3fc] hover:underline">LinkedIn ↗</a>}
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {contact.tags.map((t) => (
-              <span key={t} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/65">{t}</span>
-            ))}
-          </div>
+          {editingIdentity ? (
+            <div className="mt-3 grid max-w-2xl grid-cols-1 gap-2 sm:grid-cols-2">
+              <Input2 label="First name" value={identityDraft.first_name} onChange={(v) => setIdentityDraft((d) => ({ ...d, first_name: v }))} />
+              <Input2 label="Last name" value={identityDraft.last_name} onChange={(v) => setIdentityDraft((d) => ({ ...d, last_name: v }))} />
+              <Input2 label="Email" value={identityDraft.email} onChange={(v) => setIdentityDraft((d) => ({ ...d, email: v }))} type="email" />
+              <Input2 label="LinkedIn" value={identityDraft.linkedin} onChange={(v) => setIdentityDraft((d) => ({ ...d, linkedin: v }))} />
+              <Input2 label="Company" value={identityDraft.company} onChange={(v) => setIdentityDraft((d) => ({ ...d, company: v }))} />
+              <Input2 label="Title" value={identityDraft.title} onChange={(v) => setIdentityDraft((d) => ({ ...d, title: v }))} />
+              <div className="sm:col-span-2">
+                <Input2 label="Tags (comma-separated)" value={identityDraft.tags} onChange={(v) => setIdentityDraft((d) => ({ ...d, tags: v }))} />
+              </div>
+              <div className="sm:col-span-2 flex justify-end gap-2 pt-1">
+                <button onClick={() => setEditingIdentity(false)} disabled={identitySaving} className="rounded-lg px-3 py-1.5 text-xs text-white/55 hover:text-white">Cancel</button>
+                <button onClick={saveIdentity} disabled={identitySaving} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-white/90 disabled:opacity-50">
+                  {identitySaving ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight">{fullName(contact) || contact.email || 'Unnamed contact'}</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white/60">
+                {contact.email && <span>{contact.email}</span>}
+                {contact.title && <span className="text-white/40">·</span>}
+                {contact.title && <span>{contact.title}</span>}
+                {contact.company && <span className="text-white/40">·</span>}
+                {contact.company && <span>{contact.company}</span>}
+                {contact.linkedin && <a href={contact.linkedin} target="_blank" rel="noreferrer" className="text-[#7dd3fc] hover:underline">LinkedIn ↗</a>}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {contact.tags.map((t) => (
+                  <span key={t} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/65">{t}</span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {!editingIdentity && (
+            <button
+              onClick={() => setEditingIdentity(true)}
+              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/75 hover:bg-white/10"
+            >
+              Edit contact
+            </button>
+          )}
           <button
             onClick={() => setShowCompose(true)}
             disabled={!contact.email || contact.unsubscribed || contact.bounced}
@@ -225,6 +304,30 @@ export default function ContactDetailView({ id }: { id: string }) {
         />
       )}
     </main>
+  );
+}
+
+function Input2({
+  label,
+  value,
+  onChange,
+  type = 'text',
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
+  return (
+    <label className="block">
+      <div className="mb-1 text-[11px] uppercase tracking-[0.14em] text-white/40">{label}</div>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/90 outline-none transition-all focus:border-white/25"
+      />
+    </label>
   );
 }
 
